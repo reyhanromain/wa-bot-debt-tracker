@@ -1,0 +1,29 @@
+{
+  "name": "wa-bot-debt-tracker",
+  "version": "1.0.0",
+  "description": "WhatsApp group bot for tracking debts between members",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js --ignore data/",
+    "test": "node test-init.js",
+    "clean": "echo '⚠️  Hapus data/logs dan data/.wwebjs_auth (database AMAN)?' && echo 'Jalankan: rm -rf data/logs data/.wwebjs_auth'"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "debt",
+    "tracker",
+    "sqlite"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^9.4.5",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.23.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
