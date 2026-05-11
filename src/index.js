@@ -4,7 +4,7 @@ const { initDatabase } = require('./database');
 const { getCommand } = require('./commands');
 const { RateLimiter } = require('./utils/rate-limiter');
 const { parseCommand, isGroupMessage } = require('./utils/parser');
-const { ensureGroup, getUser } = require('./utils/balance');
+const { ensureGroup, getUser, isGroupWhitelisted, addGroupToWhitelist } = require('./utils/balance');
 const config = require('./config');
 const logger = require('./utils/logger');
 
@@ -63,6 +63,22 @@ client.on('message_create', async (msg) => {
 
   // Only handle group messages
   if (!isGroupMessage(msg)) return;
+
+  // ─── Whitelist gate ───
+  if (config.whitelistEnabled && config.superAdminUserId > 0) {
+    if (!isGroupWhitelisted(db, msg.from)) {
+      const waUserId = msg.author || msg.from;
+      const sender = db.prepare('SELECT id FROM users WHERE wa_user_id = ?').get(waUserId);
+
+      if (sender && sender.id === config.superAdminUserId) {
+        const ts = new Date().toISOString().replace(/\.\d{3}Z$/, '+07:00');
+        addGroupToWhitelist(db, msg.from, ts);
+        logger.info(`Superadmin auto-whitelisted group ${msg.from}`);
+      } else {
+        return;
+      }
+    }
+  }
 
   const { command, args, rawArgs } = parseCommand(msg.body);
   if (!command) return;

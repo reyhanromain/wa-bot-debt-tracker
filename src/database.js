@@ -59,6 +59,11 @@ function initDatabase() {
       description TEXT,
       created_at  TEXT    NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS group_whitelist (
+      wa_group_id TEXT PRIMARY KEY,
+      created_at  TEXT NOT NULL
+    );
   `);
 
   return db;

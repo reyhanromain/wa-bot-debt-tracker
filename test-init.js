@@ -103,11 +103,16 @@ try {
       description TEXT,
       created_at  TEXT    NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS group_whitelist (
+      wa_group_id TEXT PRIMARY KEY,
+      created_at  TEXT NOT NULL
+    );
   `);
 
   // Check tables exist
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
-  const expectedTables = ['debts', 'groups', 'payments', 'users'];
+  const expectedTables = ['debts', 'group_whitelist', 'groups', 'payments', 'users'];
   const actualTables = tables.map(t => t.name);
 
   for (const t of expectedTables) {
@@ -254,6 +259,22 @@ try {
   if (formatAmount(10000) !== '10.000') throw new Error('Format amount wrong');
 
   console.log('✅ Parser berfungsi dengan benar.');
+
+  // ─── Test whitelist ───
+  const { isGroupWhitelisted, addGroupToWhitelist } = require('./src/utils/balance');
+  const ts = now;
+
+  // Should not be whitelisted initially
+  if (isGroupWhitelisted(db, 'unknown@g.us')) throw new Error('Unknown group should not be whitelisted');
+
+  // Add to whitelist
+  addGroupToWhitelist(db, '62812-test@g.us', ts);
+  if (!isGroupWhitelisted(db, '62812-test@g.us')) throw new Error('Added group should be whitelisted');
+
+  // Duplicate add should not error
+  addGroupToWhitelist(db, '62812-test@g.us', ts);
+
+  console.log('✅ Whitelist berfungsi dengan benar.');
 
   // ─── Clean up test database only ───
   db.close();

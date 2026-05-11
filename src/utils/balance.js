@@ -167,6 +167,29 @@ function getLatestTransactions(db, groupId, userId, limit = 3) {
   }));
 }
 
+/**
+ * Check if a group is whitelisted.
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} waGroupId
+ * @returns {boolean}
+ */
+function isGroupWhitelisted(db, waGroupId) {
+  const row = db.prepare('SELECT 1 FROM group_whitelist WHERE wa_group_id = ?').get(waGroupId);
+  return !!row;
+}
+
+/**
+ * Add a group to the whitelist.
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} waGroupId
+ * @param {string} timestamp
+ */
+function addGroupToWhitelist(db, waGroupId, timestamp) {
+  db.prepare(
+    'INSERT OR IGNORE INTO group_whitelist (wa_group_id, created_at) VALUES (?, ?)'
+  ).run(waGroupId, timestamp);
+}
+
 module.exports = {
   ensureGroup,
   ensureUser,
@@ -174,5 +197,7 @@ module.exports = {
   getOutstandingBalance,
   getAllOutstandingBalances,
   hasInvolvement,
-  getLatestTransactions
+  getLatestTransactions,
+  isGroupWhitelisted,
+  addGroupToWhitelist
 };

@@ -11,6 +11,8 @@ Bot WhatsApp grup untuk mencatat dan mengelola utang antar anggota grup. Dibangu
 - 👤 Daftar dengan nama panggilan
 - ⏱️ Rate limit untuk command public (cegah spam)
 - 📋 Log harian (terminal + file)
+- 🛡️ Superadmin — 1 admin utama dengan akses spesial
+- ⚪ Whitelist group — batasi akses bot ke grup tertentu
 
 ## Prasyarat
 
@@ -28,9 +30,27 @@ cd wa-bot-debt-tracker
 # Install dependencies
 npm install
 
+# Copy dan isi konfigurasi
+cp .env.example .env
+# Edit .env — isi SUPER_ADMIN_USER_ID dengan users.id dari database
+
 # Jalankan bot
 npm start
 ```
+
+## Konfigurasi
+
+Salin `.env.example` ke `.env` dan isi:
+
+| Variable | Wajib? | Default | Deskripsi |
+|----------|--------|---------|-----------|
+| `SUPER_ADMIN_USER_ID` | ❌ | — | `users.id` dari database. Superadmin otomatis approve grup baru ke whitelist. |
+| `WHITELIST_ENABLED` | ❌ | `false` | Jika `true`, bot hanya merespon di grup yang terdaftar di whitelist. Hanya berfungsi jika `SUPER_ADMIN_USER_ID` terisi. |
+
+**Cara mendapatkan `SUPER_ADMIN_USER_ID`:**
+1. Jalankan bot dan daftar via `.daftar <nama>`
+2. Cek database: `sqlite3 data/tracker.db "SELECT id, wa_user_id, display_name FROM users;"`
+3. Masukkan `id` ke `.env`
 
 ## Penggunaan
 
