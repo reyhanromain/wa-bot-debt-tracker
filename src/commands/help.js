@@ -4,18 +4,25 @@
 
 const config = require('../config');
 
-const HELP_TEXT = `📋 *Daftar Command*
+const PREFIX = config.commandPrefix;
 
-${config.commandPrefix}daftar <nama> — Daftar ke bot
-${config.commandPrefix}rename <nama> — Ganti nama
-${config.commandPrefix}utang @user <jumlah> [ket] — Catat utang (saya utang ke user)
-${config.commandPrefix}utangnya @user <jumlah> [ket] — Catat utang dari user (user utang ke saya)
-${config.commandPrefix}bayar @user <jumlah> [ket] — Bayar utang
-${config.commandPrefix}lunas @user — Lunas semua utang ke user
-${config.commandPrefix}status [@user] — Lihat status utang
-${config.commandPrefix}batal <id> — Batalkan catatan utang (D1) atau pembayaran (P1)
-${config.commandPrefix}ubah <id> <jumlah> [ket] — Ubah jumlah/keterangan utang atau pembayaran
-${config.commandPrefix}help — Tampilkan bantuan ini`;
+let HELP_TEXT = `📋 *Daftar Command*
+
+${PREFIX}daftar <nama> — Daftar ke bot
+${PREFIX}rename <nama> — Ganti nama
+${PREFIX}utang @user <jumlah> [ket] — Catat utang (saya utang ke user)
+${PREFIX}utangnya @user <jumlah> [ket] — Catat utang dari user (user utang ke saya)
+${PREFIX}bayar @user <jumlah> [ket] — Bayar utang
+${PREFIX}lunas @user — Lunas semua utang ke user
+${PREFIX}status [@user] — Lihat status utang
+${PREFIX}batal <id> — Batalkan catatan utang (D1) atau pembayaran (P1)
+${PREFIX}ubah <id> <jumlah> [ket] — Ubah jumlah/keterangan utang atau pembayaran`;
+
+if (config.ai.enabled && config.ai.apiUrl) {
+  HELP_TEXT += `\n${PREFIX}ai <prompt> — Tanya AI seputar data utang`;
+}
+
+HELP_TEXT += `\n${PREFIX}help — Tampilkan bantuan ini`;
 
 /**
  * Handle .help command.

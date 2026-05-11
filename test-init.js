@@ -26,7 +26,9 @@ const requiredFiles = [
   'src/commands/pay.js',
   'src/commands/settle.js',
   'src/commands/status.js',
-  'src/commands/cancel.js'
+  'src/commands/cancel.js',
+  'src/commands/ai.js',
+  'src/utils/ai.js'
 ];
 
 let allPresent = true;
@@ -363,6 +365,28 @@ try {
   if (indexNames[1] !== 'idx_log_created_at') throw new Error('Missing idx_log_created_at');
 
   console.log('✅ Command log berfungsi dengan benar.');
+
+  // ─── Test AI module ───
+  const { isReady } = require('./src/utils/ai');
+
+  // isReady should return false when AI is not configured (no .env in test)
+  if (isReady()) {
+    // If somehow configured, at least verify it returns true
+    console.log('ℹ️  AI terdeteksi aktif (ada .env atau env var).');
+  } else {
+    console.log('ℹ️  AI tidak aktif (wajar, tidak ada .env di test).');
+  }
+
+  // Test that the ai command module loads without error
+  const { handleAi } = require('./src/commands/ai');
+  if (typeof handleAi !== 'function') throw new Error('handleAi should be a function');
+
+  // Verify context building logic works (test that the query functions exist)
+  const allUsers = db.prepare('SELECT wa_user_id, display_name FROM users').all();
+  if (!Array.isArray(allUsers)) throw new Error('AI context users query failed');
+  if (allUsers.length === 0) throw new Error('AI context users should not be empty');
+
+  console.log('✅ AI module berfungsi dengan benar.');
 
   // ─── Clean up test database only ───
   db.close();

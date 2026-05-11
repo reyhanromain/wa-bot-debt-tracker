@@ -13,6 +13,7 @@ const { handleSettle } = require('./settle');
 const { handleStatus } = require('./status');
 const { handleCancel } = require('./cancel');
 const { handleUbah } = require('./ubah');
+const config = require('../config');
 
 /**
  * Command registry.
@@ -84,6 +85,17 @@ const commands = {
     rateLimit: null
   }
 };
+
+// Register AI command only if enabled and configured
+if (config.ai.enabled && config.ai.apiUrl) {
+  const { handleAi } = require('./ai');
+  commands.ai = {
+    handler: handleAi,
+    requiresRegistration: true,
+    isPublic: false,
+    rateLimit: null
+  };
+}
 
 function getCommand(name) {
   return commands[name] || null;
