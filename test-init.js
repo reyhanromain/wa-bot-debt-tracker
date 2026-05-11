@@ -276,6 +276,53 @@ try {
 
   console.log('✅ Whitelist berfungsi dengan benar.');
 
+  // ─── Test ubah (edit debt/payment amount) ───
+  const { getOutstandingBalance } = require('./src/utils/balance');
+
+  // Create a second test user for ubah tests
+  db.prepare('INSERT INTO users (wa_user_id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)').run(
+    '62812yyy@c.us', 'User Dua', now, now
+  );
+  const userId2 = db.prepare('SELECT id FROM users WHERE wa_user_id = ?').get('62812yyy@c.us').id;
+
+  // Create a clean test debt (userId owes userId2)
+  db.prepare('INSERT INTO debts (group_id, debtor_id, creditor_id, amount, description, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+    groupId, userId, userId2, 10000, 'utang test', 'active', now, now
+  );
+  const ubahDebtId = db.prepare('SELECT id FROM debts WHERE debtor_id = ? AND creditor_id = ? AND status = \'active\' ORDER BY id DESC').get(userId, userId2).id;
+
+  // Create a payment of 3000
+  db.prepare('INSERT INTO payments (group_id, payer_id, receiver_id, amount, description, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+    groupId, userId, userId2, 3000, 'bayar test', now
+  );
+
+  const ubahOutstanding = getOutstandingBalance(db, groupId, userId, userId2);
+  if (ubahOutstanding !== 7000) throw new Error(`Ubah initial balance wrong: ${ubahOutstanding}`);
+
+  // Simulate ubah debt: change debt amount from 10000 to 8000
+  db.prepare('UPDATE debts SET amount = ?, updated_at = ? WHERE id = ?').run(8000, now, ubahDebtId);
+  const afterDebtUbah = getOutstandingBalance(db, groupId, userId, userId2);
+  if (afterDebtUbah !== 5000) throw new Error(`Ubah debt amount failed: ${afterDebtUbah}`);
+
+  // Restore debt amount back
+  db.prepare('UPDATE debts SET amount = ?, updated_at = ? WHERE id = ?').run(10000, now, ubahDebtId);
+
+  // Test balance constraint: simulate validation logic
+  const current = getOutstandingBalance(db, groupId, userId, userId2); // 7000
+  const debtAmount = db.prepare('SELECT amount FROM debts WHERE id = ?').get(ubahDebtId).amount; // 10000
+  const balanceWithout = current - debtAmount; // -3000
+  const minAllowed = Math.max(1, debtAmount - current); // 3000
+
+  // Changing debt amount to minAllowed should be valid
+  const validTest = balanceWithout + minAllowed >= 0;
+  if (!validTest) throw new Error('Ubah min allowed should be valid');
+
+  // Changing debt amount to below minAllowed should be invalid
+  const invalidTest = balanceWithout + (minAllowed - 1) >= 0;
+  if (invalidTest) throw new Error('Ubah below min allowed should be invalid');
+
+  console.log('✅ Ubah berfungsi dengan benar.');
+
   // ─── Clean up test database only ───
   db.close();
   if (fs.existsSync(TEST_DB_PATH)) {

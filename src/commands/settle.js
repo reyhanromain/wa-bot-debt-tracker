@@ -52,7 +52,8 @@ function handleSettle(msg, args, db, sender, groupId) {
   msg.reply(
     `🟢 Bayar #P${settleId} Rp${formatAmount(outstanding)} ke @${receiver.display_name} berhasil dicatat\n` +
     `✅ Semua utang lunas\n` +
-    `💡 untuk membatalkan, kirim *.batal P${settleId}*`
+    `💡 untuk membatalkan, kirim *.batal P${settleId}*\n` +
+    `💡 untuk mengubah, kirim *.ubah P${settleId} <jumlah>*`
   );
 }
 

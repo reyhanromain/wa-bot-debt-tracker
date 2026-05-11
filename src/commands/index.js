@@ -12,6 +12,7 @@ const { handlePay } = require('./pay');
 const { handleSettle } = require('./settle');
 const { handleStatus } = require('./status');
 const { handleCancel } = require('./cancel');
+const { handleUbah } = require('./ubah');
 
 /**
  * Command registry.
@@ -72,6 +73,12 @@ const commands = {
   },
   batal: {
     handler: handleCancel,
+    requiresRegistration: true,
+    isPublic: false,
+    rateLimit: null
+  },
+  ubah: {
+    handler: handleUbah,
     requiresRegistration: true,
     isPublic: false,
     rateLimit: null

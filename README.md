@@ -136,12 +136,16 @@ Batalkan catatan utang (`D<id>`) atau pembayaran (`P<id>`). Hanya pembuat yang b
 🗑️ Pembayaran #P2 berhasil dibatalkan.
 ```
 
-#### `.help`
-Tampilkan daftar semua command.
+#### `.ubah <id> <jumlah> [keterangan]`
+Ubah jumlah (dan/atau keterangan) utang atau pembayaran. Hanya pembuat yang bisa mengubah. Jumlah tidak boleh menyebabkan total utang minus.
 ```
-: .help
-📋 *Daftar Command*
-...
+.ubah D1 15000
+🔄 Utang #D1 diubah menjadi *Rp15.000*
+📝 Total utang saat ini: *Rp15.000*
+
+.ubah P2 5000 bayar donat
+🔄 Pembayaran #P2 diubah menjadi *Rp5.000* keterangan: bayar donat
+📝 Total utang saat ini: *Rp12.000*
 ```
 
 ### Format Jumlah

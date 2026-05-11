@@ -69,7 +69,8 @@ function handlePay(msg, args, db, sender, groupId) {
   msg.reply(
     `🟢 Bayar #P${payId} *Rp${formatAmount(amount)}* ke @${receiver.display_name}${descStr} berhasil dicatat\n` +
     `📝 Total utang saat ini: *Rp${formatAmount(remaining)}*\n` +
-    `💡 untuk membatalkan, kirim *.batal P${payId}*`
+    `💡 untuk membatalkan, kirim *.batal P${payId}*\n` +
+    `💡 untuk mengubah, kirim *.ubah P${payId} <jumlah>*`
   );
 }
 

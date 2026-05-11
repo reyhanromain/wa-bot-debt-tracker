@@ -71,7 +71,10 @@ function cancelDebt(msg, db, sender, groupId, debtId) {
     'UPDATE debts SET status = ?, updated_at = ? WHERE id = ?'
   ).run('cancelled', ts, debtId);
 
-  msg.reply(`🗑️ Utang #D${debtId} berhasil dibatalkan.`);
+  msg.reply(
+    `🗑️ Utang #D${debtId} berhasil dibatalkan.\n` +
+    `💡 Alternatif: jika hanya ingin mengubah jumlah, gunakan *.ubah D${debtId} <jumlah>*`
+  );
 }
 
 /**
@@ -98,7 +101,10 @@ function cancelPayment(msg, db, sender, groupId, paymentId) {
 
   deletePayment();
 
-  msg.reply(`🗑️ Pembayaran #P${paymentId} berhasil dibatalkan.`);
+  msg.reply(
+    `🗑️ Pembayaran #P${paymentId} berhasil dibatalkan.\n` +
+    `💡 Alternatif: jika hanya ingin mengubah jumlah, gunakan *.ubah P${paymentId} <jumlah>*`
+  );
 }
 
 module.exports = { handleCancel };

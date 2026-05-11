@@ -14,6 +14,7 @@ ${config.commandPrefix}bayar @user <jumlah> [ket] — Bayar utang
 ${config.commandPrefix}lunas @user — Lunas semua utang ke user
 ${config.commandPrefix}status [@user] — Lihat status utang
 ${config.commandPrefix}batal <id> — Batalkan catatan utang (D1) atau pembayaran (P1)
+${config.commandPrefix}ubah <id> <jumlah> [ket] — Ubah jumlah/keterangan utang atau pembayaran
 ${config.commandPrefix}help — Tampilkan bantuan ini`;
 
 /**

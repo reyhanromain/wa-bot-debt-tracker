@@ -61,7 +61,8 @@ function handleDebtOther(msg, args, db, sender, groupId) {
   msg.reply(
     `🟡 Utang #D${id} *Rp${formatAmount(amount)}* ke @${sender.display_name}${descStr} berhasil dicatat (dari @${debtor.display_name})\n` +
     `📝 Total utang @${debtor.display_name} saat ini: *Rp${formatAmount(total)}*\n` +
-    `💡 untuk membatalkan, kirim *.batal D${id}*`
+    `💡 untuk membatalkan, kirim *.batal D${id}*\n` +
+    `💡 untuk mengubah, kirim *.ubah D${id} <jumlah>*`
   );
 }
 
