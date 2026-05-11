@@ -66,6 +66,15 @@ Catat utang baru ke anggota yang di-mention.
 💡 untuk membatalkan, kirim *.batal D1*
 ```
 
+#### `.utangnya @<mention> <jumlah> [keterangan]`
+Kebalikan dari `.utang` — mencatat bahwa user yang di-mention berutang ke pengirim.
+```
+.utangnya @reyhan 10000 donat
+🟡 Utang #D1 *Rp10.000* ke @reyhan untuk donat berhasil dicatat (dari @budi)
+📝 Total utang @reyhan saat ini: *Rp10.000*
+💡 untuk membatalkan, kirim *.batal D1*
+```
+
 #### `.bayar @<mention> <jumlah> [keterangan]`
 Bayar utang ke anggota yang di-mention. Bisa parsial.
 ```
