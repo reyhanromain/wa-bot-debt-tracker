@@ -18,6 +18,10 @@ function handleRegister(msg, args, db, sender) {
     msg.reply('❌ Gunakan: .daftar <nama>\nContoh: .daftar Reyhan');
     return;
   }
+  if (name.length < 3 || name.length > 20) {
+    msg.reply('❌ Nama harus antara 3 sampai 20 karakter.');
+    return;
+  }
 
   // sender may be null for unregistered users — derive waUserId from msg
   const waUserId = msg.author || msg.from;

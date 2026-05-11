@@ -17,6 +17,10 @@ function handleRename(msg, args, db, sender) {
     msg.reply('❌ Gunakan: .rename <nama>\nContoh: .rename Budi');
     return;
   }
+  if (newName.length < 3 || newName.length > 20) {
+    msg.reply('❌ Nama harus antara 3 sampai 20 karakter.');
+    return;
+  }
 
   const ts = nowWIB();
   db.prepare(
