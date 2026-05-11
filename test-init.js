@@ -178,14 +178,79 @@ try {
   console.log('✅ Rate limiter berfungsi dengan benar.');
 
   // ─── Test parser ───
-  const { parseCommand, extractAmount, formatAmount } = require('./src/utils/parser');
+  const { parseCommand, parseAmountString, extractAmount, formatAmount } = require('./src/utils/parser');
+
+  // Test parseCommand
   const parsed = parseCommand('.utang @reyhan 10000 donat');
   if (parsed.command !== 'utang') throw new Error('Parser command wrong');
   if (parsed.args.length !== 3) throw new Error('Parser args wrong');
 
-  const extracted = extractAmount(['10000', 'donat']);
-  if (extracted.amount !== 10000) throw new Error('Parser amount wrong');
+  // Test plain integer
+  if (extractAmount(['10000', 'donat']).amount !== 10000) throw new Error('Plain integer failed');
 
+  // Test thousands separator dots
+  if (parseAmountString('1.000') !== 1000) throw new Error('Dots 1.000 failed');
+  if (parseAmountString('10.000') !== 10000) throw new Error('Dots 10.000 failed');
+  if (parseAmountString('1.000.500') !== 1000500) throw new Error('Dots 1.000.500 failed');
+
+  // Test suffix k
+  if (parseAmountString('2k') !== 2000) throw new Error('Suffix k failed');
+  if (parseAmountString('10k') !== 10000) throw new Error('Suffix 10k failed');
+
+  // Test suffix rb
+  if (parseAmountString('3rb') !== 3000) throw new Error('Suffix rb failed');
+  if (parseAmountString('100rb') !== 100000) throw new Error('Suffix 100rb failed');
+
+  // Test suffix jt/juta
+  if (parseAmountString('4jt') !== 4000000) throw new Error('Suffix jt failed');
+  if (parseAmountString('5juta') !== 5000000) throw new Error('Suffix juta failed');
+
+  // Test suffix m/M (juta)
+  if (parseAmountString('6m') !== 6000000) throw new Error('Suffix m failed');
+  if (parseAmountString('7M') !== 7000000) throw new Error('Suffix M failed');
+
+  // Test suffix mil/miliar
+  if (parseAmountString('2mil') !== 2000000000) throw new Error('Suffix mil failed');
+  if (parseAmountString('3miliar') !== 3000000000) throw new Error('Suffix miliar failed');
+
+  // Test suffix t/tr/triliun
+  if (parseAmountString('1t') !== 1000000000000) throw new Error('Suffix t failed');
+  if (parseAmountString('2tr') !== 2000000000000) throw new Error('Suffix tr failed');
+  if (parseAmountString('3triliun') !== 3000000000000) throw new Error('Suffix triliun failed');
+
+  // Test decimal comma + suffix
+  if (parseAmountString('1,5rb') !== 1500) throw new Error('Decimal 1,5rb failed');
+  if (parseAmountString('2,5jt') !== 2500000) throw new Error('Decimal 2,5jt failed');
+  if (parseAmountString('0,5k') !== 500) throw new Error('Decimal 0,5k failed');
+
+  // Test slang Hokkien
+  if (parseAmountString('gocap') !== 50000) throw new Error('Slang gocap failed');
+  if (parseAmountString('cepek') !== 100000) throw new Error('Slang cepek failed');
+  if (parseAmountString('nopek') !== 200) throw new Error('Slang nopek failed');
+  if (parseAmountString('gopek') !== 500) throw new Error('Slang gopek failed');
+  if (parseAmountString('seceng') !== 1000) throw new Error('Slang seceng failed');
+  if (parseAmountString('ceceng') !== 1000) throw new Error('Slang ceceng failed');
+  if (parseAmountString('noceng') !== 2000) throw new Error('Slang noceng failed');
+  if (parseAmountString('goceng') !== 5000) throw new Error('Slang goceng failed');
+  if (parseAmountString('ceban') !== 10000) throw new Error('Slang ceban failed');
+  if (parseAmountString('goban') !== 50000) throw new Error('Slang goban failed');
+  if (parseAmountString('cetiao') !== 1000000) throw new Error('Slang cetiao failed');
+  if (parseAmountString('cetiau') !== 1000000) throw new Error('Slang cetiau failed');
+  if (parseAmountString('gotiao') !== 5000000) throw new Error('Slang gotiao failed');
+  if (parseAmountString('gotiau') !== 5000000) throw new Error('Slang gotiau failed');
+
+  // Test reject invalid inputs
+  if (parseAmountString('') !== null) throw new Error('Empty string should be null');
+  if (parseAmountString('abc') !== null) throw new Error('abc should be null');
+  if (parseAmountString('0') !== null) throw new Error('0 should be null');
+  if (parseAmountString('-500') !== null) throw new Error('-500 should be null');
+
+  // Test integration: extractAmount with slang
+  const slangExtract = extractAmount(['goceng', 'donat']);
+  if (slangExtract.amount !== 5000) throw new Error('extractAmount slang failed');
+  if (slangExtract.rest.length !== 1 || slangExtract.rest[0] !== 'donat') throw new Error('extractAmount slang rest failed');
+
+  // Test formatAmount
   if (formatAmount(10000) !== '10.000') throw new Error('Format amount wrong');
 
   console.log('✅ Parser berfungsi dengan benar.');

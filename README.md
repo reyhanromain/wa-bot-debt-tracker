@@ -119,10 +119,37 @@ Batalkan catatan utang (`D<id>`) atau pembayaran (`P<id>`). Hanya pembuat yang b
 #### `.help`
 Tampilkan daftar semua command.
 ```
-.help
+: .help
 📋 *Daftar Command*
 ...
 ```
+
+### Format Jumlah
+
+Untuk command yang menerima jumlah (`.utang`, `.utangnya`, `.bayar`), jumlah bisa ditulis dalam berbagai format:
+
+| Format | Contoh | Hasil |
+|--------|--------|-------|
+| Biasa | `10000` | 10.000 |
+| Titik ribuan | `10.000` | 10.000 |
+| Ribuan (k) | `2k` | 2.000 |
+| Ribuan (rb) | `3rb` | 3.000 |
+| Jutaan (jt) | `4jt` | 4.000.000 |
+| Jutaan (juta) | `5juta` | 5.000.000 |
+| Jutaan (m/M) | `6m` / `7M` | 6.000.000 |
+| Miliaran (mil) | `2mil` | 2.000.000.000 |
+| Miliaran (miliar) | `3miliar` | 3.000.000.000 |
+| Triliunan (t/tr) | `1t` / `2tr` | 1.000.000.000.000 |
+| Koma desimal | `1,5rb` | 1.500 |
+| Slang Hokkien | `goceng` | 5.000 |
+| Slang Hokkien | `ceban` | 10.000 |
+| Slang Hokkien | `gocap` | 50.000 |
+| Slang Hokkien | `cepek` | 100.000 |
+| Slang Hokkien | `goban` | 50.000 |
+| Slang Hokkien | `cetiao` | 1.000.000 |
+| Slang Hokkien | `gotiao` | 5.000.000 |
+
+Slang Hokkien lengkap: `gocap`, `cepek`, `nopek`, `gopek`, `seceng/ceceng`, `noceng`, `goceng`, `ceban`, `goban`, `cetiao/cetiau`, `gotiao/gotiau`.
 
 ## Struktur Project
 

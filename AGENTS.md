@@ -45,6 +45,10 @@ No lint, typecheck, or format commands exist.
 - Test DB at `data/tracker.test.db` — cleaned up automatically
 - `npm test` does NOT touch the production DB
 
+## Conventions
+- **Every change must check if README needs updating** — docs drift silently otherwise
+- Amount parser (`parseAmountString` in `src/utils/parser.js`) supports: Indonesian thousands dots (`1.000`), suffix multipliers (`2k`/`3rb`/`4jt`/`5juta`/`6m`/`7M`/`2mil`/`3miliar`/`1t`), decimal comma (`1,5rb`), and Hokkien slang (`goceng`, `ceban`, etc.)
+
 ## Gotchas
 - `.gitignore` excludes `package-lock.json` — do not commit it
 - No pre-commit hooks, no CI — all verification is manual via `npm test`
