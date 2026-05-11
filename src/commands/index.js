@@ -7,6 +7,7 @@ const { handleHelp } = require('./help');
 const { handleRegister } = require('./register');
 const { handleRename } = require('./rename');
 const { handleDebt } = require('./debt');
+const { handleDebtOther } = require('./debt_other');
 const { handlePay } = require('./pay');
 const { handleSettle } = require('./settle');
 const { handleStatus } = require('./status');
@@ -41,6 +42,12 @@ const commands = {
   },
   utang: {
     handler: handleDebt,
+    requiresRegistration: true,
+    isPublic: false,
+    rateLimit: null
+  },
+  utangnya: {
+    handler: handleDebtOther,
     requiresRegistration: true,
     isPublic: false,
     rateLimit: null

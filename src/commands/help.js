@@ -8,7 +8,8 @@ const HELP_TEXT = `📋 *Daftar Command*
 
 ${config.commandPrefix}daftar <nama> — Daftar ke bot
 ${config.commandPrefix}rename <nama> — Ganti nama
-${config.commandPrefix}utang @user <jumlah> [ket] — Catat utang
+${config.commandPrefix}utang @user <jumlah> [ket] — Catat utang (saya utang ke user)
+${config.commandPrefix}utangnya @user <jumlah> [ket] — Catat utang dari user (user utang ke saya)
 ${config.commandPrefix}bayar @user <jumlah> [ket] — Bayar utang
 ${config.commandPrefix}lunas @user — Lunas semua utang ke user
 ${config.commandPrefix}status [@user] — Lihat status utang
