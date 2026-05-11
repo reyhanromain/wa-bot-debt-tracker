@@ -64,6 +64,22 @@ function initDatabase() {
       wa_group_id TEXT PRIMARY KEY,
       created_at  TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS command_log (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id     TEXT    NOT NULL,
+      user_name   TEXT,
+      command     TEXT    NOT NULL,
+      args        TEXT,
+      group_id    TEXT    NOT NULL,
+      group_name  TEXT,
+      status      TEXT    NOT NULL,
+      error_msg   TEXT,
+      created_at  TEXT    NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_log_created_at ON command_log(created_at);
+    CREATE INDEX IF NOT EXISTS idx_log_command    ON command_log(command);
   `);
 
   return db;

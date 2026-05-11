@@ -14,6 +14,16 @@ const rateLimiter = new RateLimiter();
 // Initialize database
 const db = initDatabase();
 
+// ─── Command log helper ───
+
+function logCommand({ userId, userName, command, args, groupId, groupName, status, errorMsg }) {
+  const ts = new Date().toISOString().replace(/\.\d{3}Z$/, '+07:00');
+  db.prepare(`
+    INSERT INTO command_log (user_id, user_name, command, args, group_id, group_name, status, error_msg, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(userId, userName, command, args || null, groupId, groupName, status, errorMsg || null, ts);
+}
+
 // ─── WhatsApp Client Events ───
 
 client.on('qr', (qr) => {
@@ -117,6 +127,10 @@ client.on('message_create', async (msg) => {
         userId: waUserId, userName, command, args: rawArgs,
         groupId: waGroupId, groupName, status: 'rate_limited'
       });
+      logCommand({
+        userId: waUserId, userName, command, args: rawArgs,
+        groupId: waGroupId, groupName, status: 'rate_limited'
+      });
       return; // Silent ignore
     }
 
@@ -126,8 +140,16 @@ client.on('message_create', async (msg) => {
         userId: waUserId, userName, command, args: rawArgs,
         groupId: waGroupId, groupName, status: 'success'
       });
+      logCommand({
+        userId: waUserId, userName, command, args: rawArgs,
+        groupId: waGroupId, groupName, status: 'success'
+      });
     } catch (err) {
       logger.command({
+        userId: waUserId, userName, command, args: rawArgs,
+        groupId: waGroupId, groupName, status: 'error', errorMsg: err.message
+      });
+      logCommand({
         userId: waUserId, userName, command, args: rawArgs,
         groupId: waGroupId, groupName, status: 'error', errorMsg: err.message
       });
@@ -147,8 +169,16 @@ client.on('message_create', async (msg) => {
         userId: waUserId, userName, command, args: rawArgs,
         groupId: waGroupId, groupName, status: 'rejected'
       });
+      logCommand({
+        userId: waUserId, userName, command, args: rawArgs,
+        groupId: waGroupId, groupName, status: 'rejected'
+      });
     } else {
       logger.command({
+        userId: waUserId, userName, command, args: rawArgs,
+        groupId: waGroupId, groupName, status: 'rate_limited'
+      });
+      logCommand({
         userId: waUserId, userName, command, args: rawArgs,
         groupId: waGroupId, groupName, status: 'rate_limited'
       });
@@ -164,9 +194,17 @@ client.on('message_create', async (msg) => {
       userId: waUserId, userName, command, args: rawArgs,
       groupId: waGroupId, groupName, status: 'success'
     });
+    logCommand({
+      userId: waUserId, userName, command, args: rawArgs,
+      groupId: waGroupId, groupName, status: 'success'
+    });
   } catch (err) {
     console.error(`Error handling .${command}:`, err);
     logger.command({
+      userId: waUserId, userName, command, args: rawArgs,
+      groupId: waGroupId, groupName, status: 'error', errorMsg: err.message
+    });
+    logCommand({
       userId: waUserId, userName, command, args: rawArgs,
       groupId: waGroupId, groupName, status: 'error', errorMsg: err.message
     });

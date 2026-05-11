@@ -108,11 +108,27 @@ try {
       wa_group_id TEXT PRIMARY KEY,
       created_at  TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS command_log (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id     TEXT    NOT NULL,
+      user_name   TEXT,
+      command     TEXT    NOT NULL,
+      args        TEXT,
+      group_id    TEXT    NOT NULL,
+      group_name  TEXT,
+      status      TEXT    NOT NULL,
+      error_msg   TEXT,
+      created_at  TEXT    NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_log_created_at ON command_log(created_at);
+    CREATE INDEX IF NOT EXISTS idx_log_command ON command_log(command);
   `);
 
   // Check tables exist
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
-  const expectedTables = ['debts', 'group_whitelist', 'groups', 'payments', 'users'];
+  const expectedTables = ['command_log', 'debts', 'group_whitelist', 'groups', 'payments', 'users'];
   const actualTables = tables.map(t => t.name);
 
   for (const t of expectedTables) {
@@ -322,6 +338,31 @@ try {
   if (invalidTest) throw new Error('Ubah below min allowed should be invalid');
 
   console.log('✅ Ubah berfungsi dengan benar.');
+
+  // ─── Test command_log ───
+
+  db.prepare(`
+    INSERT INTO command_log (user_id, user_name, command, args, group_id, group_name, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run('62812xxx@c.us', 'Test User', 'test', 'arg1 arg2', '62812-test@g.us', 'Test Group', 'success', now);
+
+  const logCount = db.prepare('SELECT COUNT(*) AS count FROM command_log').get().count;
+  if (logCount !== 1) throw new Error('Command log insert failed');
+
+  const logEntry = db.prepare('SELECT * FROM command_log ORDER BY id DESC LIMIT 1').get();
+  if (logEntry.command !== 'test') throw new Error('Command log query failed');
+  if (logEntry.status !== 'success') throw new Error('Command log status failed');
+  if (logEntry.args !== 'arg1 arg2') throw new Error('Command log args failed');
+  if (logEntry.error_msg !== null) throw new Error('Command log null error_msg failed');
+
+  // Verify indexes exist
+  const indexes = db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='command_log'").all();
+  const indexNames = indexes.map(i => i.name).sort();
+  if (indexNames.length !== 2) throw new Error(`Expected 2 indexes for command_log, got ${indexNames.length}`);
+  if (indexNames[0] !== 'idx_log_command') throw new Error('Missing idx_log_command');
+  if (indexNames[1] !== 'idx_log_created_at') throw new Error('Missing idx_log_created_at');
+
+  console.log('✅ Command log berfungsi dengan benar.');
 
   // ─── Clean up test database only ───
   db.close();
