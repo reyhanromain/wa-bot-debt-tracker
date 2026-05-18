@@ -13,6 +13,14 @@ Pencatat utang antar anggota grup.
 - 👤 Daftar dengan nama panggilan
 - 🤖 AI query seputar data utang
 
+### yt-subs-reminder
+Pengingat tagihan YouTube Premium Family.
+- 📅 Auto-billing setiap tgl 14 (kurangi saldo 31rb/member)
+- 💰 Topup saldo member
+- 📊 Lihat saldo & riwayat transaksi
+- 👥 Manage member (CRUD + link WA user)
+- ⚠️ Mention otomatis jika saldo minus saat billing
+
 ## Arsitektur
 
 Bot menggunakan **feature-based architecture**:
@@ -84,6 +92,19 @@ npm start
 | `.help` | Tampilkan bantuan |
 | `.ai <prompt>` | Tanya AI (jika enabled) |
 
+### Command yt-subs-reminder
+
+| Command | Akses | Deskripsi |
+|---------|-------|-----------|
+| `.saldo` | Semua | Lihat saldo semua member |
+| `.tsx [n]` | Semua | Riwayat transaksi (default 3, maks 8) |
+| `.help` | Semua | Tampilkan bantuan |
+| `.topup @user <nominal>` | Super admin | Tambah saldo member |
+| `.member new @user <nama>` | Super admin | Tambah member |
+| `.member edit-name <lama> <baru>` | Super admin | Ganti nama member |
+| `.member edit-user <nama> @user/me` | Super admin | Link WA user |
+| `.member remove @user` | Super admin | Hapus member |
+
 ### Format Jumlah
 
 | Format | Contoh | Hasil |
@@ -119,11 +140,15 @@ wa-bot-debt-tracker/
 │   ├── utils/
 │   │   └── ai.js                   # OpenAI-compatible client
 │   └── features/
-│       └── debt-tracker/
-│           ├── index.js            # Feature manifest
-│           ├── schema.js           # debts + payments tables
-│           ├── utils.js            # Balance calculations
-│           └── commands/           # All debt-tracker commands
+│       ├── debt-tracker/
+│       │   ├── index.js            # Feature manifest
+│       │   ├── schema.js           # debts + payments tables
+│       │   ├── utils.js            # Balance calculations
+│       │   └── commands/           # All debt-tracker commands
+│       └── yt-subs-reminder/
+│           ├── index.js            # Feature manifest + billing scheduler
+│           ├── schema.js           # yt_members + yt_transactions tables
+│           └── commands/           # member, topup, saldo, tsx, help
 └── data/
     ├── tracker.db                  # SQLite database
     ├── logs/                       # Daily log files

@@ -46,6 +46,8 @@ module.exports = {
 - `group_features` table: `wa_group_id TEXT PK, feature_name TEXT, assigned_at TEXT`
 - Migration on startup: existing groups with debts auto-assigned to `debt-tracker`
 - Integers for currency amounts (Rupiah); `id-ID` locale for display
+- `yt_members` table: `id, display_name, wa_user_id (nullable), balance, active, created_at`
+- `yt_transactions` table: `id, member_id, type (topup/deduction/adjustment), amount, balance_after, description, created_at`
 
 ## Data directories (all gitignored, auto-created)
 - `data/tracker.db` — SQLite production DB
