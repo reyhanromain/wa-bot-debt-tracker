@@ -1,12 +1,8 @@
-const config = require('../../../config');
 const { formatAmount } = require('../../../shared/parser');
 
 function handleTsx(msg, args, db) {
-  const waUserId = msg.author || msg.from;
-  const sender = db.prepare('SELECT id FROM users WHERE wa_user_id = ?').get(waUserId);
-  if (!sender || sender.id !== config.superAdminUserId) return;
 
-  const limit = parseInt(args[0], 10) || 5;
+  const limit = Math.min(parseInt(args[0], 10) || 3, 8);
 
   // Get last N distinct dates with transactions
   const dates = db.prepare(`

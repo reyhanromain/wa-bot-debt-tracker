@@ -1,9 +1,4 @@
-const config = require('../../../config');
-
 function handleHelp(msg, args, db) {
-  const waUserId = msg.author || msg.from;
-  const sender = db.prepare('SELECT id FROM users WHERE wa_user_id = ?').get(waUserId);
-  if (!sender || sender.id !== config.superAdminUserId) return;
 
   msg.reply(`📋 *YouTube Premium — Commands*
 

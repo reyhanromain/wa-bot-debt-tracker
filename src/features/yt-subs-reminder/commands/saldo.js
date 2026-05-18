@@ -1,10 +1,6 @@
-const config = require('../../../config');
 const { formatAmount } = require('../../../shared/parser');
 
 function handleSaldo(msg, args, db) {
-  const waUserId = msg.author || msg.from;
-  const sender = db.prepare('SELECT id FROM users WHERE wa_user_id = ?').get(waUserId);
-  if (!sender || sender.id !== config.superAdminUserId) return;
 
   const members = db.prepare('SELECT display_name, balance FROM yt_members WHERE active = 1 ORDER BY id').all();
   const lines = ['💰 *Saldo YouTube Premium*', ''];
