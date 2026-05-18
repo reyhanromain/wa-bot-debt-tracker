@@ -22,13 +22,12 @@ function handleTsx(msg, args, db) {
   const members = db.prepare('SELECT id, display_name FROM yt_members WHERE active = 1 ORDER BY id').all();
   const contextParts = [];
   for (const m of members) {
-    // Get balance_after of the last tx BEFORE firstDate for this member
     const prev = db.prepare(`
       SELECT balance_after FROM yt_transactions WHERE member_id = ? AND date(created_at) < ? ORDER BY id DESC LIMIT 1
     `).get(m.id, firstDate);
     const bal = prev ? prev.balance_after : 0;
     const sign = bal < 0 ? '-' : '';
-    contextParts.push(`${m.display_name}: ${sign}Rp${formatAmount(Math.abs(bal))}`);
+    contextParts.push(`  • ${m.display_name}: ${sign}Rp${formatAmount(Math.abs(bal))}`);
   }
 
   // Format context date as day before first date
@@ -36,7 +35,7 @@ function handleTsx(msg, args, db) {
   ctxDate.setDate(ctxDate.getDate() - 1);
   const ctxStr = ctxDate.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric' });
   lines.push(`💰 Saldo per ${ctxStr}:`);
-  lines.push(`  • ${contextParts.join(' | ')}`);
+  lines.push(contextParts.join('\n'));
   lines.push('');
 
   // Group transactions by date
