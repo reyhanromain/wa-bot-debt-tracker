@@ -55,7 +55,7 @@ function handleTsx(msg, args, db) {
     lines.push(`*${dateStr}* — ${label}`);
 
     for (const t of txs) {
-      const sign = t.amount >= 0 ? '+' : '';
+      const sign = t.amount > 0 ? '+' : '';
       const balSign = t.balance_after < 0 ? '-' : '';
       lines.push(`  • ${t.display_name}: ${sign}Rp${formatAmount(Math.abs(t.amount))} → ${balSign}Rp${formatAmount(Math.abs(t.balance_after))}`);
     }
