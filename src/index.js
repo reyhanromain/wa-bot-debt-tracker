@@ -1,28 +1,20 @@
 const { client } = require('./config');
 const qrcode = require('qrcode-terminal');
-const { initDatabase } = require('./database');
-const { getCommand } = require('./commands');
-const { RateLimiter } = require('./utils/rate-limiter');
-const { parseCommand, isGroupMessage } = require('./utils/parser');
-const { ensureGroup, getUser, isGroupWhitelisted, addGroupToWhitelist } = require('./utils/balance');
-const config = require('./config');
-const logger = require('./utils/logger');
+const { initDatabase } = require('./core/db');
+const { loadFeatures } = require('./core/feature-loader');
+const { createRouter } = require('./core/router');
+const { RateLimiter } = require('./core/rate-limiter');
+const { initScheduler } = require('./core/scheduler');
+const logger = require('./core/logger');
 
-// Initialize in-memory rate limiter
-const rateLimiter = new RateLimiter();
-
-// Initialize database
+// Initialize
 const db = initDatabase();
+const features = loadFeatures(db);
+const rateLimiter = new RateLimiter();
+const router = createRouter({ db, features, rateLimiter });
+initScheduler(db, features, { client });
 
-// ─── Command log helper ───
-
-function logCommand({ userId, userName, command, args, groupId, groupName, status, errorMsg }) {
-  const ts = new Date().toISOString().replace(/\.\d{3}Z$/, '+07:00');
-  db.prepare(`
-    INSERT INTO command_log (user_id, user_name, command, args, group_id, group_name, status, error_msg, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(userId, userName, command, args || null, groupId, groupName, status, errorMsg || null, ts);
-}
+logger.info(`Features loaded: ${[...features.keys()].join(', ') || '(none)'}`);
 
 // ─── WhatsApp Client Events ───
 
@@ -52,190 +44,26 @@ client.on('disconnected', (reason) => {
   logger.info(`Disconnected: ${reason}`);
 });
 
-client.on('message_create', async (msg) => {
-  // Log bot's own outgoing messages (replies)
-  if (msg.fromMe) {
-    // Only log messages sent to groups
-    if (msg.to && msg.to.endsWith('@g.us')) {
-      let groupName = msg.to;
-      try {
-        const chat = await msg.getChat();
-        if (chat && chat.name) groupName = chat.name;
-      } catch (_) {}
-      logger.botReply({
-        groupId: msg.to,
-        groupName,
-        text: msg.body
-      });
-    }
-    return;
-  }
-
-  // Only handle group messages
-  if (!isGroupMessage(msg)) return;
-
-  // ─── Whitelist gate ───
-  if (config.whitelistEnabled && config.superAdminUserId > 0) {
-    if (!isGroupWhitelisted(db, msg.from)) {
-      const waUserId = msg.author || msg.from;
-      const sender = db.prepare('SELECT id FROM users WHERE wa_user_id = ?').get(waUserId);
-
-      if (sender && sender.id === config.superAdminUserId) {
-        const ts = new Date().toISOString().replace(/\.\d{3}Z$/, '+07:00');
-        addGroupToWhitelist(db, msg.from, ts);
-        logger.info(`Superadmin auto-whitelisted group ${msg.from}`);
-      } else {
-        return;
-      }
-    }
-  }
-
-  const { command, args, rawArgs } = parseCommand(msg.body);
-  if (!command) return;
-
-  const cmdMeta = getCommand(command);
-  if (!cmdMeta) return; // Unknown command, silently ignore
-
-  const waUserId = msg.author || msg.from;
-  const waGroupId = msg.from;
-
-  // Ensure group exists in DB (handle async getChat)
-  let groupName = waGroupId;
-  try {
-    const chat = await msg.getChat();
-    if (chat && chat.name) groupName = chat.name;
-  } catch (_) {
-    // Silently fall back to group ID
-  }
-
-  const ts = new Date().toISOString().replace(/\.\d{3}Z$/, '+07:00');
-  const groupId = ensureGroup(db, waGroupId, groupName, ts);
-
-  // Get user info (may be null if unregistered)
-  const sender = getUser(db, waUserId);
-  const isRegistered = sender !== null;
-  const userName = sender ? sender.display_name : waUserId.split('@')[0];
-
-  // ─── Public commands: rate limited ───
-
-  if (cmdMeta.isPublic) {
-    const rateKey = `${waUserId}:${waGroupId}:${command}`;
-    const allowed = rateLimiter.allow(rateKey, cmdMeta.rateLimit.max, cmdMeta.rateLimit.windowMs);
-
-    if (!allowed) {
-      logger.command({
-        userId: waUserId, userName, command, args: rawArgs,
-        groupId: waGroupId, groupName, status: 'rate_limited'
-      });
-      logCommand({
-        userId: waUserId, userName, command, args: rawArgs,
-        groupId: waGroupId, groupName, status: 'rate_limited'
-      });
-      return; // Silent ignore
-    }
-
-    try {
-      await cmdMeta.handler(msg, args, db, sender, groupId);
-      logger.command({
-        userId: waUserId, userName, command, args: rawArgs,
-        groupId: waGroupId, groupName, status: 'success'
-      });
-      logCommand({
-        userId: waUserId, userName, command, args: rawArgs,
-        groupId: waGroupId, groupName, status: 'success'
-      });
-    } catch (err) {
-      logger.command({
-        userId: waUserId, userName, command, args: rawArgs,
-        groupId: waGroupId, groupName, status: 'error', errorMsg: err.message
-      });
-      logCommand({
-        userId: waUserId, userName, command, args: rawArgs,
-        groupId: waGroupId, groupName, status: 'error', errorMsg: err.message
-      });
-    }
-    return;
-  }
-
-  // ─── Non-public commands: check registration (if required) ───
-
-  if (cmdMeta.requiresRegistration && !isRegistered) {
-    const rejectKey = `${waUserId}:${waGroupId}:reject`;
-    const allowed = rateLimiter.allow(rejectKey, config.rateLimits.unregisteredRejection.max, config.rateLimits.unregisteredRejection.windowMs);
-
-    if (allowed) {
-      msg.reply('❌ Silakan daftar dulu dengan .daftar <nama>');
-      logger.command({
-        userId: waUserId, userName, command, args: rawArgs,
-        groupId: waGroupId, groupName, status: 'rejected'
-      });
-      logCommand({
-        userId: waUserId, userName, command, args: rawArgs,
-        groupId: waGroupId, groupName, status: 'rejected'
-      });
-    } else {
-      logger.command({
-        userId: waUserId, userName, command, args: rawArgs,
-        groupId: waGroupId, groupName, status: 'rate_limited'
-      });
-      logCommand({
-        userId: waUserId, userName, command, args: rawArgs,
-        groupId: waGroupId, groupName, status: 'rate_limited'
-      });
-    }
-    return;
-  }
-
-  // ─── Execute Core Command ───
-
-  try {
-    await cmdMeta.handler(msg, args, db, sender, groupId);
-    logger.command({
-      userId: waUserId, userName, command, args: rawArgs,
-      groupId: waGroupId, groupName, status: 'success'
-    });
-    logCommand({
-      userId: waUserId, userName, command, args: rawArgs,
-      groupId: waGroupId, groupName, status: 'success'
-    });
-  } catch (err) {
-    console.error(`Error handling .${command}:`, err);
-    logger.command({
-      userId: waUserId, userName, command, args: rawArgs,
-      groupId: waGroupId, groupName, status: 'error', errorMsg: err.message
-    });
-    logCommand({
-      userId: waUserId, userName, command, args: rawArgs,
-      groupId: waGroupId, groupName, status: 'error', errorMsg: err.message
-    });
-  }
-});
+client.on('message_create', (msg) => router.handleMessage(msg));
 
 // ─── Graceful Shutdown ───
 
 async function shutdown(signal) {
   console.log(`\n🛑 Menerima ${signal}, mematikan bot...`);
   logger.info(`Shutdown received: ${signal}`);
-  try {
-    await client.destroy();
-    logger.info('Bot shut down gracefully');
-  } catch (_) {
-    // Ignore destroy errors
-  }
+  try { await client.destroy(); logger.info('Bot shut down gracefully'); } catch (_) {}
   db.close();
   process.exit(0);
 }
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-
-// Also handle uncaught exceptions gracefully
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught exception', err);
   console.error('❌ Uncaught exception:', err.message);
 });
 
-// Start the bot
+// Start
 logger.info('Bot started');
 console.log('🚀 Memulai bot...');
 client.initialize();

@@ -5,7 +5,6 @@ const path = require('path');
 require('dotenv').config();
 
 const superAdminUserId = parseInt(process.env.SUPER_ADMIN_USER_ID, 10) || 0;
-const whitelistEnabled = process.env.WHITELIST_ENABLED === 'true';
 
 const aiEnabled = process.env.AI_ENABLED === 'true';
 const aiProvider = process.env.AI_PROVIDER || 'ollama';
@@ -33,9 +32,6 @@ module.exports = {
 
   // Super admin
   superAdminUserId,
-
-  // Whitelist
-  whitelistEnabled,
 
   // AI
   ai: {

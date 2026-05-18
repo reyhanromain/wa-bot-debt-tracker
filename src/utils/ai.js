@@ -1,14 +1,15 @@
 const OpenAI = require('openai');
 const config = require('../config');
 
-const SYSTEM_PROMPT = `Kamu adalah asisten AI untuk bot pencatat utang WhatsApp grup.
+const SYSTEM_PROMPT = `Kamu adalah asisten AI pribadi di WhatsApp grup.
 
 Aturan:
-- Kamu HANYA bisa menjawab berdasarkan data dari tabel debts (utang), payments (pembayaran), groups (grup), command_log (riwayat perintah), dan users (pengguna) yang sudah disediakan di bawah ini.
-- Jika user bertanya sesuatu di luar data yang diberikan, jawab dengan: "Maaf, saya hanya bisa membantu pertanyaan seputar data utang."
+- Kamu HANYA bisa menjawab berdasarkan data yang sudah disediakan di bawah ini.
+- Jika user bertanya sesuatu di luar data yang diberikan, jawab dengan: "Maaf, saya hanya bisa membantu pertanyaan seputar data yang tersedia."
 - Jangan membuat atau mengarang data yang tidak ada.
 - Gunakan bahasa Indonesia yang santai dan informatif.
-- Jika ada mention user, gunakan nama display_name untuk merujuk ke pengguna.`;
+- Jika ada mention user, gunakan nama display_name untuk merujuk ke pengguna.
+- Gunakan format teks WhatsApp: *teks* untuk tebal (BUKAN **teks**), _teks_ untuk miring. Jangan gunakan markdown seperti ##, **, atau bullet - (gunakan • jika perlu bullet).`;
 
 let openai = null;
 let isInitialized = false;
@@ -49,7 +50,9 @@ async function askAI(userPrompt, contextData) {
       temperature: 0.1,
     });
 
-    return response.choices[0].message.content;
+    return response.choices[0].message.content
+      .replace(/\*\*\*(.+?)\*\*\*/g, '*$1*')  // ***bold-italic*** → *bold-italic*
+      .replace(/\*\*(.+?)\*\*/g, '*$1*');      // **bold** → *bold*
   } catch (err) {
     throw new Error(`Gagal terhubung ke AI: ${err.message}`);
   }
