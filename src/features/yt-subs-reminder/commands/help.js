@@ -12,7 +12,7 @@ function handleHelp(msg, args, db) {
 .tsx [n] — Lihat n transaksi terakhir (default 5)
 .member new @user <nama> — Tambah member
 .member edit-name <lama> <baru> — Ganti nama
-.member edit-user <nama> @user — Link WA user
+.member edit-user <nama> @user — Link WA user (atau "me")
 .member remove @user — Hapus member
 .help — Tampilkan bantuan ini`);
 }

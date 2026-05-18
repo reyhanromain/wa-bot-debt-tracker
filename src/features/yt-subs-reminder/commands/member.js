@@ -29,11 +29,12 @@ function handleMember(msg, args, db) {
   } else if (sub === 'edit-user') {
     const name = args[1];
     const mentionedId = getMentionedId(msg);
-    if (!name || !mentionedId) return msg.reply('❌ .member edit-user <nama> @user');
+    const targetId = mentionedId || (args[2] === 'me' ? (msg.author || msg.from) : null);
+    if (!name || !targetId) return msg.reply('❌ .member edit-user <nama> @user\n💡 Gunakan "me" untuk diri sendiri: .member edit-user <nama> me');
     const member = db.prepare('SELECT id FROM yt_members WHERE display_name = ?').get(name);
     if (!member) return msg.reply(`❌ Member "${name}" tidak ditemukan.`);
-    db.prepare('UPDATE yt_members SET wa_user_id = ? WHERE id = ?').run(mentionedId, member.id);
-    msg.reply(`✅ Member *${name}* di-link ke @${mentionedId.split('@')[0]}`);
+    db.prepare('UPDATE yt_members SET wa_user_id = ? WHERE id = ?').run(targetId, member.id);
+    msg.reply(`✅ Member *${name}* di-link ke @${targetId.split('@')[0]}`);
   } else if (sub === 'remove') {
     const mentionedId = getMentionedId(msg);
     if (!mentionedId) return msg.reply('❌ .member remove @user');
