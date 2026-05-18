@@ -5,6 +5,7 @@ const { loadFeatures } = require('./core/feature-loader');
 const { createRouter } = require('./core/router');
 const { RateLimiter } = require('./core/rate-limiter');
 const { initScheduler } = require('./core/scheduler');
+const config = require('./config');
 const logger = require('./core/logger');
 
 // Initialize
@@ -15,6 +16,15 @@ const router = createRouter({ db, features, rateLimiter });
 initScheduler(db, features, { client });
 
 logger.info(`Features loaded: ${[...features.keys()].join(', ') || '(none)'}`);
+
+// Helper: notify super admin via DM
+async function notifyAdmin(text) {
+  if (!config.superAdminUserId) return;
+  try {
+    const admin = db.prepare('SELECT wa_user_id FROM users WHERE id = ?').get(config.superAdminUserId);
+    if (admin) await client.sendMessage(admin.wa_user_id, text);
+  } catch (_) {}
+}
 
 // ─── WhatsApp Client Events ───
 
@@ -27,6 +37,7 @@ client.on('qr', (qr) => {
 client.on('ready', () => {
   console.log('✅ Bot siap!');
   logger.info('Bot ready — connected to WhatsApp');
+  notifyAdmin('✅ Bot nyala.');
 });
 
 client.on('authenticated', () => {
@@ -51,7 +62,12 @@ client.on('message_create', (msg) => router.handleMessage(msg));
 async function shutdown(signal) {
   console.log(`\n🛑 Menerima ${signal}, mematikan bot...`);
   logger.info(`Shutdown received: ${signal}`);
-  try { await client.destroy(); logger.info('Bot shut down gracefully'); } catch (_) {}
+  try {
+    await notifyAdmin('🛑 Bot mati.');
+    await new Promise(r => setTimeout(r, 1000));
+    await client.destroy();
+    logger.info('Bot shut down gracefully');
+  } catch (_) {}
   db.close();
   process.exit(0);
 }
