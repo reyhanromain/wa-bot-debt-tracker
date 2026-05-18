@@ -1,241 +1,167 @@
-# WhatsApp Debt Tracker Bot
+# WhatsApp Personal Assistant Bot
 
-Bot WhatsApp grup untuk mencatat dan mengelola utang antar anggota grup. Dibangun dengan [whatsapp-web.js](https://wwebjs.dev) dan SQLite.
+Bot WhatsApp personal assistant dengan arsitektur multi-fitur. Setiap grup hanya bisa menggunakan 1 fitur (exclusive binding). Dibangun dengan [whatsapp-web.js](https://wwebjs.dev) dan SQLite.
 
-## Fitur
+## Fitur Tersedia
 
+### debt-tracker
+Pencatat utang antar anggota grup.
 - 📝 Catat utang ke anggota grup
 - 💰 Bayar utang (parsial maupun lunas)
 - 📊 Lihat status utang (per user atau semua)
-- 🗑️ Batalkan catatan utang atau pembayaran
+- 🗑️ Batalkan/ubah catatan utang atau pembayaran
 - 👤 Daftar dengan nama panggilan
-- ⏱️ Rate limit untuk command public (cegah spam)
-- 📋 Log harian (terminal + file)
-- 🛡️ Superadmin — 1 admin utama dengan akses spesial
-- ⚪ Whitelist group — batasi akses bot ke grup tertentu
+- 🤖 AI query seputar data utang
+
+## Arsitektur
+
+Bot menggunakan **feature-based architecture**:
+- **1 grup = 1 fitur** — setiap grup hanya bisa menggunakan 1 fitur pada satu waktu
+- **`.assist`** — satu-satunya global command (super admin only) untuk manage fitur per grup
+- **Feature gate** — grup tanpa fitur aktif akan silent ignore semua command
+- **Scheduler** — infrastruktur cron job per fitur (croner)
 
 ## Prasyarat
 
 - Node.js v18+
 - npm
 - Nomor WhatsApp aktif (untuk scan QR)
-- Chrome/Chromium (diinstal otomatis oleh Puppeteer)
 
 ## Instalasi
 
 ```bash
-# Clone/download project
 cd wa-bot-debt-tracker
-
-# Install dependencies
 npm install
-
-# Copy dan isi konfigurasi
 cp .env.example .env
-# Edit .env — isi SUPER_ADMIN_USER_ID dengan users.id dari database
-
-# Jalankan bot
+# Edit .env — isi SUPER_ADMIN_USER_ID
 npm start
 ```
 
 ## Konfigurasi
 
-Salin `.env.example` ke `.env` dan isi:
-
 | Variable | Wajib? | Default | Deskripsi |
 |----------|--------|---------|-----------|
-| `SUPER_ADMIN_USER_ID` | ❌ | — | `users.id` dari database. Superadmin otomatis approve grup baru ke whitelist. |
-| `WHITELIST_ENABLED` | ❌ | `false` | Jika `true`, bot hanya merespon di grup yang terdaftar di whitelist. Hanya berfungsi jika `SUPER_ADMIN_USER_ID` terisi. |
-
-**Cara mendapatkan `SUPER_ADMIN_USER_ID`:**
-1. Jalankan bot dan daftar via `.daftar <nama>`
-2. Cek database: `sqlite3 data/tracker.db "SELECT id, wa_user_id, display_name FROM users;"`
-3. Masukkan `id` ke `.env`
+| `SUPER_ADMIN_USER_ID` | ❌ | — | `users.id` dari database. Diperlukan untuk `.assist` command. |
+| `AI_ENABLED` | ❌ | `false` | Aktifkan fitur AI |
+| `AI_PROVIDER` | ❌ | `ollama` | Provider AI |
+| `AI_MODEL` | ❌ | `llama3.2` | Model AI |
+| `AI_API_URL` | ❌ | `http://localhost:11434/v1` | Base URL API |
+| `AI_API_KEY` | ❌ | — | API key (kosongkan untuk Ollama) |
+| `AI_CONTEXT_MAX_ROWS` | ❌ | — | Maks rows per table untuk AI context |
 
 ## Penggunaan
 
-### Pertama Kali
+### Setup Awal
 
-1. Jalankan `npm start` atau `npm run dev`
-2. Scan QR code yang muncul di terminal dengan WhatsApp Anda (WA > Setelan > Perangkat Tertaut)
-3. Bot akan menyimpan session — restart berikutnya tidak perlu scan ulang
-4. Tambahkan bot ke grup WhatsApp
+1. Jalankan `npm start`, scan QR code
+2. Tambahkan bot ke grup WhatsApp
+3. Daftar sebagai user: `.daftar <nama>`
+4. Cek database untuk `users.id` Anda, masukkan ke `.env` sebagai `SUPER_ADMIN_USER_ID`
+5. Restart bot
+6. Di grup, jalankan: `.assist set debt-tracker`
 
-### Command
+### Command Global
 
-#### `.daftar <nama>`
-Daftar ke bot dengan nama panggilan. **Wajib** sebelum bisa menggunakan command lain.
-```
-.daftar Reyhan
-👤 Berhasil mendaftar dengan nama *Reyhan*
-```
+| Command | Akses | Deskripsi |
+|---------|-------|-----------|
+| `.assist status` | Super admin | Lihat fitur aktif di grup |
+| `.assist set <feature>` | Super admin | Aktifkan fitur di grup |
+| `.assist none` | Super admin | Hapus fitur dari grup |
 
-#### `.rename <nama>`
-Ganti nama panggilan.
-```
-.rename Budi
-👤 Nama berhasil diubah menjadi *Budi*
-```
+### Command debt-tracker
 
-#### `.utang @<mention> <jumlah> [keterangan]`
-Catat utang baru ke anggota yang di-mention.
-```
-.utang @budi 10000 donat
-🟡 Utang #D1 *Rp10.000* ke @budi untuk donat berhasil dicatat
-📝 Total utang saat ini: *Rp10.000*
-💡 untuk membatalkan, kirim *.batal D1*
-```
-
-#### `.utangnya @<mention> <jumlah> [keterangan]`
-Kebalikan dari `.utang` — mencatat bahwa user yang di-mention berutang ke pengirim.
-```
-.utangnya @reyhan 10000 donat
-🟡 Utang #D1 *Rp10.000* ke @reyhan untuk donat berhasil dicatat (dari @budi)
-📝 Total utang @reyhan saat ini: *Rp10.000*
-💡 untuk membatalkan, kirim *.batal D1*
-```
-
-#### `.bayar @<mention> <jumlah> [keterangan]`
-Bayar utang ke anggota yang di-mention. Bisa parsial.
-```
-.bayar @budi 5000 bayar donat
-🟢 Bayar #P2 *Rp5.000* ke @budi terkait bayar donat berhasil dicatat
-📝 Total utang saat ini: *Rp5.000*
-💡 untuk membatalkan, kirim *.batal P2*
-```
-
-#### `.lunas @<mention>`
-Lunasi semua utang yang tersisa ke anggota yang di-mention.
-```
-.lunas @budi
-🟢 Bayar #P3 Rp3.000 ke @budi berhasil dicatat
-✅ Semua utang lunas
-💡 untuk membatalkan, kirim *.batal P3*
-```
-
-#### `.status [@<mention>]`
-Lihat laporan utang. Tanpa mention → tampilkan semua. Dengan mention → tampilkan spesifik user.
-```
-.status
-📊 *Status Utang Grup*
-
-@reyhan → @budi
-Total: Rp15.000
-3 Transaksi Terakhir:
-🟡 Utang #D1 | 10 Mei 07:44 | Rp5.000
-🟢 Bayar #P2 | 10 Mei 07:44 | Rp3.000 | parkir
-```
-
-#### `.batal <id>`
-Batalkan catatan utang (`D<id>`) atau pembayaran (`P<id>`). Hanya pembuat yang bisa membatalkan.
-```
-.batal D1
-🗑️ Utang #D1 berhasil dibatalkan.
-
-.batal P2
-🗑️ Pembayaran #P2 berhasil dibatalkan.
-```
-
-#### `.ubah <id> <jumlah> [keterangan]`
-Ubah jumlah (dan/atau keterangan) utang atau pembayaran. Hanya pembuat yang bisa mengubah. Jumlah tidak boleh menyebabkan total utang minus.
-```
-.ubah D1 15000
-🔄 Utang #D1 diubah menjadi *Rp15.000*
-📝 Total utang saat ini: *Rp15.000*
-
-.ubah P2 5000 bayar donat
-🔄 Pembayaran #P2 diubah menjadi *Rp5.000* keterangan: bayar donat
-📝 Total utang saat ini: *Rp12.000*
-```
+| Command | Deskripsi |
+|---------|-----------|
+| `.daftar <nama>` | Daftar ke bot |
+| `.rename <nama>` | Ganti nama |
+| `.utang @user <jumlah> [ket]` | Catat utang |
+| `.utangnya @user <jumlah> [ket]` | Catat utang dari user |
+| `.bayar @user <jumlah> [ket]` | Bayar utang |
+| `.lunas @user` | Lunas semua utang |
+| `.status [@user]` | Lihat status utang |
+| `.batal <id>` | Batalkan catatan (D1/P1) |
+| `.ubah <id> <jumlah> [ket]` | Ubah jumlah |
+| `.help` | Tampilkan bantuan |
+| `.ai <prompt>` | Tanya AI (jika enabled) |
 
 ### Format Jumlah
-
-Untuk command yang menerima jumlah (`.utang`, `.utangnya`, `.bayar`), jumlah bisa ditulis dalam berbagai format:
 
 | Format | Contoh | Hasil |
 |--------|--------|-------|
 | Biasa | `10000` | 10.000 |
 | Titik ribuan | `10.000` | 10.000 |
-| Ribuan (k) | `2k` | 2.000 |
-| Ribuan (rb) | `3rb` | 3.000 |
-| Jutaan (jt) | `4jt` | 4.000.000 |
-| Jutaan (juta) | `5juta` | 5.000.000 |
-| Jutaan (m/M) | `6m` / `7M` | 6.000.000 |
-| Miliaran (mil) | `2mil` | 2.000.000.000 |
-| Miliaran (miliar) | `3miliar` | 3.000.000.000 |
-| Triliunan (t/tr) | `1t` / `2tr` | 1.000.000.000.000 |
+| Ribuan (k/rb) | `2k`, `3rb` | 2.000, 3.000 |
+| Jutaan (jt/juta/m) | `4jt`, `5m` | 4.000.000, 5.000.000 |
+| Miliaran (mil/miliar) | `2mil` | 2.000.000.000 |
 | Koma desimal | `1,5rb` | 1.500 |
-| Slang Hokkien | `goceng` | 5.000 |
-| Slang Hokkien | `ceban` | 10.000 |
-| Slang Hokkien | `gocap` | 50.000 |
-| Slang Hokkien | `cepek` | 100.000 |
-| Slang Hokkien | `goban` | 50.000 |
-| Slang Hokkien | `cetiao` | 1.000.000 |
-| Slang Hokkien | `gotiao` | 5.000.000 |
-
-Slang Hokkien lengkap: `gocap`, `cepek`, `nopek`, `gopek`, `seceng/ceceng`, `noceng`, `goceng`, `ceban`, `goban`, `cetiao/cetiau`, `gotiao/gotiau`.
+| Slang Hokkien | `goceng`, `ceban`, `cepek` | 5.000, 10.000, 100.000 |
 
 ## Struktur Project
 
 ```
 wa-bot-debt-tracker/
 ├── package.json
-├── .gitignore
-├── README.md
-├── PRD.md
-├── test-init.js                    # Test script (npm test)
+├── .env.example
 ├── src/
-│   ├── index.js                    # Entry point, message router
+│   ├── index.js                    # Entry point
 │   ├── config.js                   # App configuration
-│   ├── database.js                 # SQLite schema init
+│   ├── core/
+│   │   ├── db.js                   # SQLite init + shared schema
+│   │   ├── router.js               # Message routing + feature gate
+│   │   ├── feature-loader.js       # Auto-discover features
+│   │   ├── scheduler.js            # Cron job runner (croner)
+│   │   ├── rate-limiter.js         # In-memory rate limiter
+│   │   └── logger.js               # File + terminal logger
 │   ├── commands/
-│   │   ├── index.js                # Command routing map
-│   │   ├── help.js                 # .help
-│   │   ├── register.js             # .daftar
-│   │   ├── rename.js               # .rename
-│   │   ├── debt.js                 # .utang
-│   │   ├── pay.js                  # .bayar
-│   │   ├── settle.js               # .lunas
-│   │   ├── status.js               # .status
-│   │   └── cancel.js               # .batal
-│   └── utils/
-│       ├── balance.js              # Balance calculation & queries
-│       ├── parser.js               # Command & mention parsing
-│       ├── rate-limiter.js         # In-memory rate limiter
-│       └── logger.js               # File + terminal logger
+│   │   └── assist.js               # Global command (super admin)
+│   ├── shared/
+│   │   └── parser.js               # Command & amount parsing
+│   ├── utils/
+│   │   └── ai.js                   # OpenAI-compatible client
+│   └── features/
+│       └── debt-tracker/
+│           ├── index.js            # Feature manifest
+│           ├── schema.js           # debts + payments tables
+│           ├── utils.js            # Balance calculations
+│           └── commands/           # All debt-tracker commands
 └── data/
-    ├── tracker.db                  # SQLite database (auto-generated)
-    ├── logs/                       # Log harian (auto-generated)
-    │   └── YYYY-MM-DD.log
-    └── .wwebjs_auth/               # WhatsApp session (auto-generated)
-        └── session/
+    ├── tracker.db                  # SQLite database
+    ├── logs/                       # Daily log files
+    └── .wwebjs_auth/               # WhatsApp session
 ```
+
+## Menambah Fitur Baru
+
+Buat folder di `src/features/<nama-fitur>/` dengan `index.js` yang mengekspor:
+
+```js
+module.exports = {
+  name: 'nama-fitur',
+  description: 'Deskripsi fitur',
+  initSchema(db) { /* CREATE TABLE IF NOT EXISTS ... */ },
+  commands: {
+    command_name: { handler, requiresRegistration, rateLimit, help },
+  },
+  schedules: [
+    // { name: 'job-name', cron: '0 9 14 * *', tz: 'Asia/Jakarta', run: async (ctx) => {} }
+  ],
+};
+```
+
+Lalu assign ke grup via `.assist set nama-fitur`.
 
 ## Development
 
 ```bash
-# Jalankan dengan auto-restart saat ada perubahan file
-npm run dev
-
-# Test tpa sentuh database produksi
-npm test
-
-# Hapus session & log (database AMAN)
-rm -rf data/logs data/.wwebjs_auth
+npm run dev    # Auto-restart via nodemon
+npm test       # Unit test
 ```
 
 ## Teknologi
 
-- **[whatsapp-web.js](https://wwebjs.dev)** — WhatsApp Web automation
-- **Puppeteer** — Headless browser (via whatsapp-web.js)
+- **whatsapp-web.js** — WhatsApp Web automation
 - **better-sqlite3** — SQLite synchronous driver
-- **qrcode-terminal** — QR code display in terminal
-- **nodemon** — Auto-restart during development
-
-## Limitasi
-
-- whatsapp-web.js adalah unofficial API — ada risiko kecil akun terbanned
-- Nomor WhatsApp yang terhubung harus online selama bot berjalan
-- Membutuhkan ~200-500MB RAM (Chromium)
-- Pembayaran yang sudah dicatat tidak bisa diedit, hanya bisa dibatalkan
-- Rate limit bersifat in-memory (hilang saat bot restart)
+- **croner** — Cron scheduler (timezone-aware)
+- **openai** — AI client (OpenAI-compatible)
+- **qrcode-terminal** — QR code display
+- **nodemon** — Auto-restart (dev)
