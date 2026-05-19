@@ -8,7 +8,15 @@ function handleMember(msg, args, db) {
 
   const sub = (args[0] || '').toLowerCase();
 
-  if (sub === 'new') {
+  if (sub === 'new-x') {
+    const name = args.slice(1).join(' ').trim();
+    if (!name) return msg.reply('❌ .member new-x <nama>');
+    const exists = db.prepare('SELECT id FROM yt_members WHERE display_name = ?').get(name);
+    if (exists) return msg.reply(`❌ Member "${name}" sudah ada.`);
+    const ts = nowWIB();
+    db.prepare('INSERT INTO yt_members (display_name, balance, active, created_at) VALUES (?, 0, 1, ?)').run(name, ts);
+    msg.reply(`✅ Member *${name}* ditambahkan (tanpa WA link).`);
+  } else if (sub === 'new') {
     const mentionedId = getMentionedId(msg);
     if (!mentionedId) return msg.reply('❌ .member new @user <nama>');
     const name = args.filter(a => !a.startsWith('@')).slice(1).join(' ').trim();
