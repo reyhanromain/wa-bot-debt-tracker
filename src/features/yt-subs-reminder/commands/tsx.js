@@ -59,7 +59,7 @@ function handleTsx(msg, args, db) {
     for (const g of groups) {
       lines.push(`*${dateStr}* — ${g.label}`);
       for (const t of g.txs) {
-        const sign = t.amount > 0 ? '+' : '';
+        const sign = t.amount > 0 ? '+' : '-';
         const balSign = t.balance_after < 0 ? '-' : '';
         lines.push(`  • ${t.display_name}: ${sign}Rp${formatAmount(Math.abs(t.amount))} → ${balSign}Rp${formatAmount(Math.abs(t.balance_after))}`);
       }
