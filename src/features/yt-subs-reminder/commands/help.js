@@ -4,7 +4,7 @@ function handleHelp(msg, args, db) {
 
 .saldo — Lihat saldo semua member
 .topup @user <nominal> — Tambah saldo member
-.tsx [n] — Lihat n transaksi terakhir (default 5)
+.tsx [n] — Lihat n transaksi terakhir (default 3)
 .member new @user <nama> — Tambah member
 .member edit-name <lama> <baru> — Ganti nama
 .member edit-user <nama> @user — Link WA user (atau "me")
