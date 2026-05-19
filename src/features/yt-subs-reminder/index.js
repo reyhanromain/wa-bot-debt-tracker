@@ -1,4 +1,5 @@
 const { initSchema } = require('./schema');
+const { handleBilling } = require('./commands/billing');
 const { handleMember } = require('./commands/member');
 const { handleTopup } = require('./commands/topup');
 const { handleSaldo } = require('./commands/saldo');
@@ -13,6 +14,7 @@ module.exports = {
   description: 'Pengingat tagihan YouTube Premium Family',
   initSchema,
   commands: {
+    billing: { handler: handleBilling, requiresRegistration: false, rateLimit: null, help: '.billing — Trigger billing manual' },
     member: { handler: handleMember, requiresRegistration: false, rateLimit: null, help: '.member — Manage member' },
     topup: { handler: handleTopup, requiresRegistration: false, rateLimit: null, help: '.topup @user <nominal> — Tambah saldo' },
     saldo: { handler: handleSaldo, requiresRegistration: false, rateLimit: null, help: '.saldo — Lihat saldo' },
