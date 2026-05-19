@@ -42,19 +42,29 @@ function handleTsx(msg, args, db) {
       WHERE date(t.created_at) = ? ORDER BY t.id
     `).all(d);
 
-    // Determine label: all deductions = Billing, otherwise Topup
-    const allDeduction = txs.every(t => t.type === 'deduction');
-    const label = allDeduction ? 'Billing' : 'Topup';
-
     const dateStr = new Date(d + 'T00:00:00+07:00').toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric' });
-    lines.push(`*${dateStr}* — ${label}`);
 
+    // Group by type within same date
+    const groups = [];
+    let current = null;
     for (const t of txs) {
-      const sign = t.amount > 0 ? '+' : '';
-      const balSign = t.balance_after < 0 ? '-' : '';
-      lines.push(`  • ${t.display_name}: ${sign}Rp${formatAmount(Math.abs(t.amount))} → ${balSign}Rp${formatAmount(Math.abs(t.balance_after))}`);
+      const label = t.type === 'deduction' ? 'Billing' : 'Topup';
+      if (!current || current.label !== label) {
+        current = { label, txs: [] };
+        groups.push(current);
+      }
+      current.txs.push(t);
     }
-    lines.push('');
+
+    for (const g of groups) {
+      lines.push(`*${dateStr}* — ${g.label}`);
+      for (const t of g.txs) {
+        const sign = t.amount > 0 ? '+' : '';
+        const balSign = t.balance_after < 0 ? '-' : '';
+        lines.push(`  • ${t.display_name}: ${sign}Rp${formatAmount(Math.abs(t.amount))} → ${balSign}Rp${formatAmount(Math.abs(t.balance_after))}`);
+      }
+      lines.push('');
+    }
   }
 
   msg.reply(lines.join('\n').trim());
