@@ -8,7 +8,16 @@ function handleMember(msg, args, db) {
 
   const sub = (args[0] || '').toLowerCase();
 
-  if (sub === 'new-x') {
+  if (sub === 'list') {
+    const members = db.prepare('SELECT display_name, wa_user_id, active FROM yt_members ORDER BY id').all();
+    const lines = ['👥 *Member YouTube Premium*', ''];
+    for (const m of members) {
+      const linked = m.wa_user_id ? `@${m.wa_user_id.split('@')[0]}` : '(no WA)';
+      const status = m.active ? '' : ' ❌ inactive';
+      lines.push(`• ${m.display_name} — ${linked}${status}`);
+    }
+    msg.reply(lines.join('\n'));
+  } else if (sub === 'new-x') {
     const name = args.slice(1).join(' ').trim();
     if (!name) return msg.reply('❌ .member new-x <nama>');
     const exists = db.prepare('SELECT id FROM yt_members WHERE display_name = ?').get(name);
