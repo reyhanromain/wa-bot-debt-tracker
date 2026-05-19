@@ -26,11 +26,11 @@ function initSchema(db) {
 
   // Insert members with current saldo from PDF (as of 18-May-2026)
   const members = [
-    { name: 'massup', balance: 93000 },
-    { name: 'reyhan', balance: 989579999 },
-    { name: 'iqbal', balance: 31000 },
-    { name: 'doi', balance: 31000 },
-    { name: 'fernando', balance: 0 },
+    { name: 'massup', balance: 124000 },
+    { name: 'reyhan', balance: 989610999 },
+    { name: 'iqbal', balance: 62000 },
+    { name: 'doi', balance: 62000 },
+    { name: 'fernando', balance: 31000 },
   ];
 
   const insertMember = db.prepare('INSERT INTO yt_members (display_name, balance, active, created_at) VALUES (?, ?, 1, ?)');
@@ -167,7 +167,6 @@ function initSchema(db) {
     ['2026-04-05', 0, 0, 62000, 62000, 0],
     ['2026-04-14', -31000, -31000, -31000, -31000, -31000],
     ['2026-04-20', 0, 0, 0, 0, 31000],
-    ['2026-05-14', -31000, -31000, -31000, -31000, -31000],
   ];
 
   const insertTx = db.prepare(
