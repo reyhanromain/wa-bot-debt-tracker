@@ -11,6 +11,12 @@
 | command | description | leader |
 |---|---|---|
 | `npm start` | Run bot | `node src/index.js` |
+| `./bot.sh foreground` | Run bot attached for QR scan | `node src/index.js` |
+| `./bot.sh start` | Run bot detached with console log + `systemd-inhibit` when available | |
+| `./bot.sh stop` | Stop managed/orphan bot process | |
+| `./bot.sh restart` | Stop then start detached managed bot | |
+| `./bot.sh status` | Check PID, node process, inhibitor, latest app log | |
+| `./bot.sh logs` / `./bot.sh tail` | Inspect/follow app + console logs, including QR output | |
 | `npm run dev` | Auto-restart via nodemon (watches `src/`, ignores `data/`) | |
 | `npm test` | Unit test (uses temp `data/tracker.test.db`, disposes after) | `node test-init.js` |
 | `npm run clean` | No-op: just prints instructions to rm session/logs | |
@@ -52,6 +58,8 @@ module.exports = {
 ## Data directories (all gitignored, auto-created)
 - `data/tracker.db` — SQLite production DB
 - `data/logs/YYYY-MM-DD.log` — daily log files (logger writes to both file + stdout)
+- `data/logs/bot-console.log` — detached stdout/stderr from `bot.sh`, including QR output
+- `data/bot.pid` — managed wrapper PID from `bot.sh`
 - `data/.wwebjs_auth/` — WhatsApp session (LocalAuth)
 - `.wwebjs_cache/` — Puppeteer/Chromium cache
 
@@ -70,7 +78,7 @@ module.exports = {
 - No pre-commit hooks, no CI — all verification is manual via `npm test`
 - Rate limiter is in-memory only (resets on restart)
 - `npm run clean` is a no-op echo — actual cleanup requires `rm -rf data/logs data/.wwebjs_auth`
-- On first run, QR code is printed to terminal; subsequent runs reuse saved session
+- QR code is printed to stdout; use `./bot.sh foreground` for manual scan or `./bot.sh tail` for detached console output
 - Bot only processes group messages (ignores DMs and its own messages)
 - Unregistered users sending commands that require registration get a rejection message (1/min, then silent)
 - `group_whitelist` table still exists in DB but is no longer used (replaced by `group_features`)

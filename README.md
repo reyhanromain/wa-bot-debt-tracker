@@ -59,13 +59,45 @@ npm start
 
 ## Penggunaan
 
+### Operasional Bot
+
+Gunakan helper `bot.sh` untuk menjalankan bot harian agar output terminal seperti QR code tersimpan dan proses bisa dicegah dari sleep/suspend.
+
+| Command | Deskripsi |
+|---------|-----------|
+| `./bot.sh status` | Cek PID, proses `node`, inhibitor sleep, dan log app terbaru |
+| `./bot.sh start` | Jalankan bot detached/background dengan `systemd-inhibit` jika tersedia |
+| `./bot.sh stop` | Stop bot managed maupun proses `node src/index.js` yang orphan |
+| `./bot.sh restart` | Stop lalu start ulang dalam managed mode |
+| `./bot.sh logs` | Tampilkan tail log app harian dan console log |
+| `./bot.sh tail` | Follow `data/logs/bot-console.log` |
+| `./bot.sh foreground` | Jalankan di terminal aktif untuk scan QR manual |
+
+Log penting:
+- App log harian: `data/logs/YYYY-MM-DD.log`
+- Output terminal detached termasuk QR: `data/logs/bot-console.log`
+- PID managed mode: `data/bot.pid`
+
+Jika bot tidak merespon dan log berulang `QR code displayed — waiting for scan`, jalankan:
+
+```bash
+./bot.sh stop
+./bot.sh foreground
+```
+
+Scan QR di terminal. Setelah muncul `Authentication successful` dan `Bot ready`, tekan `Ctrl+C`, lalu jalankan kembali:
+
+```bash
+./bot.sh start
+```
+
 ### Setup Awal
 
-1. Jalankan `npm start`, scan QR code
+1. Jalankan `./bot.sh foreground`, scan QR code
 2. Tambahkan bot ke grup WhatsApp
 3. Daftar sebagai user: `.daftar <nama>`
 4. Cek database untuk `users.id` Anda, masukkan ke `.env` sebagai `SUPER_ADMIN_USER_ID`
-5. Restart bot
+5. Restart bot dengan `./bot.sh restart`
 6. Di grup, jalankan: `.assist set debt-tracker`
 
 ### Command Global
@@ -123,6 +155,7 @@ npm start
 
 ```
 wa-bot-debt-tracker/
+├── bot.sh                          # Helper start/stop/logs/QR foreground
 ├── package.json
 ├── .env.example
 ├── src/
@@ -153,7 +186,8 @@ wa-bot-debt-tracker/
 │           └── commands/           # member, topup, saldo, tsx, help
 └── data/
     ├── tracker.db                  # SQLite database
-    ├── logs/                       # Daily log files
+    ├── logs/                       # Daily app logs + bot-console.log
+    ├── bot.pid                     # PID managed mode dari bot.sh
     └── .wwebjs_auth/               # WhatsApp session
 ```
 
