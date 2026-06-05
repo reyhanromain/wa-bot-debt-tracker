@@ -85,7 +85,9 @@ npm start
 | `.utang @user <jumlah> [ket]` | Catat utang |
 | `.utangnya @user <jumlah> [ket]` | Catat utang dari user |
 | `.bayar @user <jumlah> [ket]` | Bayar utang |
+| `.bayarin @userX ke @userY <jumlah> [ket]` | Bayarkan utang user lain |
 | `.lunas @user` | Lunas semua utang |
+| `.lunasin @userX ke @userY [ket]` | Lunasi utang user lain |
 | `.status [@user]` | Lihat status utang |
 | `.batal <id>` | Batalkan catatan (D1/P1) |
 | `.ubah <id> <jumlah> [ket]` | Ubah jumlah |

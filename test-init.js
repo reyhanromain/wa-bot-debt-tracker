@@ -26,6 +26,7 @@ const requiredFiles = [
   'src/features/debt-tracker/utils.js',
   'src/features/debt-tracker/commands/ai.js',
   'src/features/debt-tracker/commands/help.js',
+  'src/features/debt-tracker/commands/pay_for.js',
   'src/features/yt-subs-reminder/index.js',
   'src/features/yt-subs-reminder/schema.js',
 ];
@@ -218,6 +219,88 @@ try {
     throw new Error('AI command should be registered when AI is enabled');
   }
   console.log('✅ AI module berfungsi dengan benar.');
+
+  const { handlePayFor, handleSettleFor } = require('./src/features/debt-tracker/commands/pay_for');
+  if (typeof handlePayFor !== 'function') throw new Error('handlePayFor should be a function');
+  if (typeof handleSettleFor !== 'function') throw new Error('handleSettleFor should be a function');
+
+  db.prepare('INSERT INTO users (wa_user_id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)').run('62812zzz@c.us', 'Zara', now, now);
+  db.prepare('INSERT INTO users (wa_user_id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)').run('62812xxx2@c.us', 'Andi', now, now);
+  db.prepare('INSERT INTO users (wa_user_id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)').run('62812yyy2@c.us', 'Budi', now, now);
+
+  const senderZ = db.prepare('SELECT id, display_name FROM users WHERE wa_user_id = ?').get('62812zzz@c.us');
+  const debtorX = db.prepare('SELECT id, display_name FROM users WHERE wa_user_id = ?').get('62812xxx2@c.us');
+  const receiverY = db.prepare('SELECT id, display_name FROM users WHERE wa_user_id = ?').get('62812yyy2@c.us');
+
+  db.prepare('INSERT INTO debts (group_id, debtor_id, creditor_id, amount, description, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(groupId, debtorX.id, receiverY.id, 50000, 'utang awal', 'active', now, now);
+
+  const paymentCount = () => db.prepare('SELECT COUNT(*) AS total FROM payments WHERE group_id = ? AND payer_id = ? AND receiver_id = ?').get(groupId, debtorX.id, receiverY.id).total;
+  const currentOutstanding = () => getOutstandingBalance(db, groupId, debtorX.id, receiverY.id);
+  const makeMsg = (mentionedIds, mentions) => {
+    const replies = [];
+    return {
+      mentionedIds,
+      mentions,
+      replies,
+      reply(text) {
+        replies.push(text);
+      },
+    };
+  };
+
+  let msg = makeMsg(['62812xxx2@c.us', '62812yyy2@c.us'], [{ pushname: 'Andi' }, { pushname: 'Budi' }]);
+  handlePayFor(msg, ['@Andi', 'ke', '@Budi', '20rb', 'titip', 'bayar'], db, senderZ, groupId);
+  if (paymentCount() !== 1) throw new Error('Bayarin happy path should insert one payment');
+  const paymentRow = db.prepare('SELECT * FROM payments WHERE group_id = ? AND payer_id = ? AND receiver_id = ? ORDER BY id DESC LIMIT 1').get(groupId, debtorX.id, receiverY.id);
+  if (paymentRow.payer_id !== debtorX.id) throw new Error('Bayarin payer_id should be debtorX.id');
+  if (paymentRow.receiver_id !== receiverY.id) throw new Error('Bayarin receiver_id should be receiverY.id');
+  if (paymentRow.amount !== 20000) throw new Error('Bayarin amount should be 20000');
+  if (!paymentRow.description.includes('titip bayar')) throw new Error('Bayarin description should include titip bayar');
+  if (!paymentRow.description.includes('Zara')) throw new Error('Bayarin description should include Zara');
+  if (currentOutstanding() !== 30000) throw new Error('Bayarin outstanding should become 30000');
+  if (!msg.replies[0].includes('#P')) throw new Error('Bayarin reply should include #P');
+  if (!msg.replies[0].includes('Andi')) throw new Error('Bayarin reply should include Andi');
+  if (!msg.replies[0].includes('Budi')) throw new Error('Bayarin reply should include Budi');
+  if (!msg.replies[0].includes('Zara')) throw new Error('Bayarin reply should include Zara');
+  if (!msg.replies[0].includes('Rp20.000')) throw new Error('Bayarin reply should include Rp20.000');
+
+  msg = makeMsg(['62812xxx2@c.us', '62812yyy2@c.us'], [{ pushname: 'Andi' }, { pushname: 'Budi' }]);
+  handlePayFor(msg, ['@Andi', '20rb', '@Budi'], db, senderZ, groupId);
+  if (paymentCount() !== 1) throw new Error('Missing ke should not insert payment');
+  if (!msg.replies[0].includes('Format tidak valid')) throw new Error('Missing ke should reply format invalid');
+
+  msg = makeMsg(['62812xxx2@c.us'], [{ pushname: 'Andi' }]);
+  handlePayFor(msg, ['@Andi', 'ke', '@Budi', '20rb'], db, senderZ, groupId);
+  if (paymentCount() !== 1) throw new Error('Missing mentions should not insert payment');
+  if (!msg.replies[0].includes('Gunakan: .bayarin')) throw new Error('Missing mentions should reply usage');
+
+  msg = makeMsg(['62812xxx2@c.us', '62812yyy2@c.us'], [{ pushname: 'Andi' }, { pushname: 'Budi' }]);
+  handlePayFor(msg, ['@Andi', 'ke', '@Budi', '100rb'], db, senderZ, groupId);
+  if (paymentCount() !== 1) throw new Error('Overpay should not insert payment');
+  if (!msg.replies[0].includes('melebihi sisa utang')) throw new Error('Overpay should be rejected');
+
+  msg = makeMsg(['62812xxx2@c.us', '62812xxx2@c.us'], [{ pushname: 'Andi' }, { pushname: 'Andi' }]);
+  handlePayFor(msg, ['@Andi', 'ke', '@Andi', '10rb'], db, senderZ, groupId);
+  if (paymentCount() !== 1) throw new Error('Duplicate mentions should not insert payment');
+  if (!msg.replies[0].includes('tidak boleh sama')) throw new Error('Duplicate mentions should be rejected');
+
+  msg = makeMsg(['62812xxx2@c.us', '62812yyy2@c.us'], [{ pushname: 'Andi' }, { pushname: 'Budi' }]);
+  handleSettleFor(msg, ['@Andi', 'ke', '@Budi', 'lunas'], db, senderZ, groupId);
+  if (paymentCount() !== 2) throw new Error('Lunasin happy path should insert second payment');
+  const settleRow = db.prepare('SELECT * FROM payments WHERE group_id = ? AND payer_id = ? AND receiver_id = ? ORDER BY id DESC LIMIT 1').get(groupId, debtorX.id, receiverY.id);
+  if (settleRow.amount !== 30000) throw new Error('Lunasin amount should settle remaining 30000');
+  if (currentOutstanding() !== 0) throw new Error('Lunasin outstanding should become 0');
+  if (!msg.replies[0].includes('lunas')) throw new Error('Lunasin reply should include lunas');
+  if (!msg.replies[0].includes('Andi')) throw new Error('Lunasin reply should include Andi');
+  if (!msg.replies[0].includes('Budi')) throw new Error('Lunasin reply should include Budi');
+  if (!msg.replies[0].includes('Zara')) throw new Error('Lunasin reply should include Zara');
+
+  msg = makeMsg(['62812xxx2@c.us', '62812yyy2@c.us'], [{ pushname: 'Andi' }, { pushname: 'Budi' }]);
+  handleSettleFor(msg, ['@Andi', 'ke', '@Budi', '10rb'], db, senderZ, groupId);
+  if (paymentCount() !== 2) throw new Error('Lunasin nominal rejection should not insert payment');
+  if (!msg.replies[0].includes('.lunasin tidak menerima nominal')) throw new Error('Lunasin nominal rejection should mention nominal restriction');
+
+  console.log('✅ Bayarin/Lunasin command tests passed.');
 
   db.close();
   if (fs.existsSync(TEST_DB_PATH)) fs.unlinkSync(TEST_DB_PATH);

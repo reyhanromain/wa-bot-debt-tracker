@@ -3,6 +3,7 @@ const { handleDebt } = require('./commands/debt');
 const { handleDebtOther } = require('./commands/debt_other');
 const { handlePay } = require('./commands/pay');
 const { handleSettle } = require('./commands/settle');
+const { handlePayFor, handleSettleFor } = require('./commands/pay_for');
 const { handleStatus } = require('./commands/status');
 const { handleCancel } = require('./commands/cancel');
 const { handleUbah } = require('./commands/ubah');
@@ -18,7 +19,9 @@ const commands = {
   utang: { handler: handleDebt, requiresRegistration: true, rateLimit: null, help: '.utang @user <jumlah> [ket] — Catat utang' },
   utangnya: { handler: handleDebtOther, requiresRegistration: true, rateLimit: null, help: '.utangnya @user <jumlah> [ket] — Catat utang dari user' },
   bayar: { handler: handlePay, requiresRegistration: true, rateLimit: null, help: '.bayar @user <jumlah> [ket] — Bayar utang' },
+  bayarin: { handler: handlePayFor, requiresRegistration: true, rateLimit: null, help: '.bayarin @userX ke @userY <jumlah> [ket] — Bayarkan utang user lain' },
   lunas: { handler: handleSettle, requiresRegistration: true, rateLimit: null, help: '.lunas @user — Lunas semua utang ke user' },
+  lunasin: { handler: handleSettleFor, requiresRegistration: true, rateLimit: null, help: '.lunasin @userX ke @userY [ket] — Lunasi utang user lain' },
   status: { handler: handleStatus, requiresRegistration: true, rateLimit: null, help: '.status [@user] — Lihat status utang' },
   batal: { handler: handleCancel, requiresRegistration: true, rateLimit: null, help: '.batal <id> — Batalkan catatan (D1/P1)' },
   ubah: { handler: handleUbah, requiresRegistration: true, rateLimit: null, help: '.ubah <id> <jumlah> [ket] — Ubah jumlah' },

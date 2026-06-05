@@ -13,7 +13,9 @@ ${PREFIX}rename <nama> — Ganti nama
 ${PREFIX}utang @user <jumlah> [ket] — Catat utang (saya utang ke user)
 ${PREFIX}utangnya @user <jumlah> [ket] — Catat utang dari user (user utang ke saya)
 ${PREFIX}bayar @user <jumlah> [ket] — Bayar utang
+${PREFIX}bayarin @userX ke @userY <jumlah> [ket] — Bayarkan utang user lain
 ${PREFIX}lunas @user — Lunas semua utang ke user
+${PREFIX}lunasin @userX ke @userY [ket] — Lunasi utang user lain
 ${PREFIX}status [@user] — Lihat status utang
 ${PREFIX}batal <id> — Batalkan catatan utang (D1) atau pembayaran (P1)
 ${PREFIX}ubah <id> <jumlah> [ket] — Ubah jumlah/keterangan utang atau pembayaran`;
