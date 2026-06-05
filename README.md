@@ -55,41 +55,57 @@ npm start
 | `AI_MODEL` | ❌ | `llama3.2` | Model AI |
 | `AI_API_URL` | ❌ | `http://localhost:11434/v1` | Base URL API |
 | `AI_API_KEY` | ❌ | — | API key (kosongkan untuk Ollama) |
-| `AI_CONTEXT_MAX_ROWS` | ❌ | — | Maks rows per table untuk AI context |
+| `NOTIFY_TELEGRAM_TOKEN` | ❌ | — | Token bot Telegram untuk notifikasi & kirim QR jarak jauh |
+| `NOTIFY_TELEGRAM_CHAT_ID` | ❌ | — | Chat ID Telegram penerima alert |
+
+> Catatan AI: model harus mendukung OpenAI-style function calling (contoh: `deepseek-chat`, `llama3.1`, `qwen2.5`). AI memanggil tools read-only ke database via `src/features/debt-tracker/ai-tools.js` — tidak ada dump data ke context.
 
 ## Penggunaan
 
 ### Operasional Bot
 
-Gunakan helper `bot.sh` untuk menjalankan bot harian agar output terminal seperti QR code tersimpan dan proses bisa dicegah dari sleep/suspend.
+`bot.sh` adalah wrapper systemd `--user`. Pertama kali `start`, ia akan auto-install unit file di `~/.config/systemd/user/wa-bot.service`. Setelah itu bot auto-restart kalau crash, dan (dengan `enable`) auto-start saat boot.
 
 | Command | Deskripsi |
 |---------|-----------|
-| `./bot.sh status` | Cek PID, proses `node`, inhibitor sleep, dan log app terbaru |
-| `./bot.sh start` | Jalankan bot detached/background dengan `systemd-inhibit` jika tersedia |
-| `./bot.sh stop` | Stop bot managed maupun proses `node src/index.js` yang orphan |
-| `./bot.sh restart` | Stop lalu start ulang dalam managed mode |
-| `./bot.sh logs` | Tampilkan tail log app harian dan console log |
+| `./bot.sh start` | Install unit (sekali) + start bot |
+| `./bot.sh stop` | Stop bot |
+| `./bot.sh restart` | Restart bot |
+| `./bot.sh status` | Systemd state, linger, log app terbaru |
+| `./bot.sh enable` | Aktifkan auto-start saat boot (memanggil `sudo loginctl enable-linger`) |
+| `./bot.sh disable` | Matikan auto-start saat boot |
+| `./bot.sh logs` | Tail `data/logs/<today>.log` + `bot-console.log` |
 | `./bot.sh tail` | Follow `data/logs/bot-console.log` |
-| `./bot.sh foreground` | Jalankan di terminal aktif untuk scan QR manual |
+| `./bot.sh journal` | 100 baris terakhir dari `journalctl --user -u wa-bot.service` |
+| `./bot.sh foreground` | Jalankan `node` langsung — dipakai untuk first-time QR scan |
+| `./bot.sh uninstall` | Stop + hapus unit file |
 
 Log penting:
 - App log harian: `data/logs/YYYY-MM-DD.log`
-- Output terminal detached termasuk QR: `data/logs/bot-console.log`
-- PID managed mode: `data/bot.pid`
+- Output stdout/stderr (termasuk QR): `data/logs/bot-console.log`
+- Unit file: `~/.config/systemd/user/wa-bot.service`
 
-Jika bot tidak merespon dan log berulang `QR code displayed — waiting for scan`, jalankan:
+### Recovery saat WA disconnect / auth expired
 
-```bash
-./bot.sh stop
-./bot.sh foreground
-```
+Bot otomatis exit non-zero pada `disconnected`, `auth_failure`, `uncaughtException`, atau setelah 3× heartbeat fail (cek `client.getState()` tiap 120 detik). systemd respawn dalam 10 detik dengan backoff. Untuk auth expired, dibutuhkan re-scan QR — lihat Telegram notifier di bawah.
 
-Scan QR di terminal. Setelah muncul `Authentication successful` dan `Bot ready`, tekan `Ctrl+C`, lalu jalankan kembali:
+### Telegram notifier (re-scan QR jarak jauh)
 
-```bash
-./bot.sh start
-```
+Saat sesi WA mati & butuh QR baru, bot mengirim QR sebagai PNG ke chat Telegram yang dikonfigurasi.
+
+Setup:
+1. Chat `@BotFather` → `/newbot` → catat token.
+2. Chat bot baru itu dari HP-mu, kirim apapun.
+3. `curl "https://api.telegram.org/bot<TOKEN>/getUpdates"` → cari `chat.id`.
+4. Isi `.env`:
+   ```env
+   NOTIFY_TELEGRAM_TOKEN=12345:ABC...
+   NOTIFY_TELEGRAM_CHAT_ID=987654321
+   ```
+
+Saat keluar rumah dan QR muncul di Telegram-mu, butuh **layar kedua** (tablet, HP lain, atau laptop teman) untuk menampilkan PNG QR sambil kamu scan dari WhatsApp di HP utama (Linked Devices → Link a Device).
+
+Notifier disable otomatis kalau dua env var tsb kosong — bot tetap jalan, alert hanya muncul di log lokal.
 
 ### Setup Awal
 

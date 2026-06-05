@@ -1,156 +1,147 @@
 #!/usr/bin/env bash
+# WA Debt Tracker bot wrapper.
+# Manages the bot as a systemd --user service so it auto-restarts on crash
+# and survives reboots once enabled. Falls back to direct `node` for the
+# `foreground` subcommand (used for the first-time QR scan).
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PID_FILE="$SCRIPT_DIR/data/bot.pid"
 LOG_DIR="$SCRIPT_DIR/data/logs"
 CONSOLE_LOG="$LOG_DIR/bot-console.log"
 APP_LOG="$LOG_DIR/$(date +%F).log"
 
+UNIT_NAME="wa-bot.service"
+UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+UNIT_FILE="$UNIT_DIR/$UNIT_NAME"
+
+NODE_BIN="${NODE_BIN:-$(command -v node || echo /usr/bin/node)}"
+
 ensure_dirs() {
-  mkdir -p "$LOG_DIR"
+  mkdir -p "$LOG_DIR" "$UNIT_DIR"
 }
 
-pid_from_file() {
-  if [ -f "$PID_FILE" ]; then
-    cat "$PID_FILE"
-  fi
+unit_content() {
+  cat <<EOF
+[Unit]
+Description=WhatsApp Debt Tracker Bot
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=simple
+WorkingDirectory=$SCRIPT_DIR
+ExecStart=$NODE_BIN $SCRIPT_DIR/src/index.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:$CONSOLE_LOG
+StandardError=append:$CONSOLE_LOG
+
+[Install]
+WantedBy=default.target
+EOF
 }
 
-is_running() {
-  local pid
-  pid="$(pid_from_file || true)"
-  if [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null; then
+install_unit_if_needed() {
+  ensure_dirs
+  local desired
+  desired="$(unit_content)"
+  if [ -f "$UNIT_FILE" ] && [ "$(cat "$UNIT_FILE")" = "$desired" ]; then
     return 0
   fi
-  return 1
+  echo "$desired" > "$UNIT_FILE"
+  systemctl --user daemon-reload
+  echo "Installed/updated systemd unit at $UNIT_FILE"
 }
 
-cleanup_stale_pid() {
-  if [ -f "$PID_FILE" ] && ! is_running; then
-    rm -f "$PID_FILE"
-  fi
+systemd_state() {
+  systemctl --user is-active "$UNIT_NAME" 2>/dev/null || echo "inactive"
 }
 
-node_pids() {
-  pgrep -f "node .*src/index.js|node $SCRIPT_DIR/src/index.js" 2>/dev/null || true
-}
-
-stop_node_pids() {
-  local pids
-  pids="$(node_pids)"
-  if [ -z "$pids" ]; then
-    return 0
-  fi
-
-  for pid in $pids; do
-    kill "$pid" 2>/dev/null || true
+direct_node_pids() {
+  # PIDs matching our entry point, EXCLUDING ones managed by the systemd unit.
+  local all pid result=""
+  all="$(pgrep -f "node $SCRIPT_DIR/src/index.js" 2>/dev/null || true)"
+  for pid in $all; do
+    if [ -r "/proc/$pid/cgroup" ] && grep -q "$UNIT_NAME" "/proc/$pid/cgroup" 2>/dev/null; then
+      continue
+    fi
+    result="$result $pid"
   done
+  echo "$result" | xargs
+}
+
+warn_if_direct_running() {
+  local pids
+  pids="$(direct_node_pids)"
+  if [ -n "$pids" ]; then
+    echo "⚠️  A non-managed node process is running: $pids"
+    echo "    (probably leftover from './bot.sh foreground'). Kill it first or it will conflict."
+  fi
 }
 
 cmd_start() {
-  ensure_dirs
-  cleanup_stale_pid
-
-  if is_running; then
-    echo "Bot is already running (PID $(pid_from_file))"
-    exit 0
-  fi
-
-  local existing_nodes
-  existing_nodes="$(node_pids)"
-  if [ -n "$existing_nodes" ]; then
-    echo "Bot node process already exists without managed wrapper: $existing_nodes"
-    echo "Run './bot.sh restart' to stop it and start managed mode."
-    exit 1
-  fi
-
-  local runner=(node "$SCRIPT_DIR/src/index.js")
-  if command -v systemd-inhibit >/dev/null 2>&1; then
-    runner=(systemd-inhibit --what=handle-lid-switch:sleep:idle --why="WA Debt Tracker" "${runner[@]}")
-  fi
-
-  nohup setsid "${runner[@]}" >> "$CONSOLE_LOG" 2>&1 < /dev/null &
-  echo $! > "$PID_FILE"
-
-  echo "Bot started (wrapper PID $(cat "$PID_FILE"))"
-  echo "Console log: $CONSOLE_LOG"
+  install_unit_if_needed
+  warn_if_direct_running
+  systemctl --user start "$UNIT_NAME"
+  sleep 1
+  cmd_status
 }
 
 cmd_stop() {
-  cleanup_stale_pid
-  if ! is_running; then
-    if [ -n "$(node_pids)" ]; then
-      stop_node_pids
-      rm -f "$PID_FILE"
-      echo "Bot node process stopped"
-      exit 0
+  if [ ! -f "$UNIT_FILE" ]; then
+    echo "Unit not installed yet (run './bot.sh start' first)."
+    # Best-effort: kill any stray direct node process
+    local pids
+    pids="$(direct_node_pids)"
+    if [ -n "$pids" ]; then
+      echo "Killing direct node process(es): $pids"
+      kill $pids 2>/dev/null || true
     fi
-    echo "Bot is not running"
     exit 0
   fi
-
-  local pid
-  pid="$(pid_from_file)"
-  kill "$pid" 2>/dev/null || true
-
-  for _ in 1 2 3 4 5 6 7 8 9 10; do
-    if ! kill -0 "$pid" 2>/dev/null; then
-      break
-    fi
-    sleep 0.5
-  done
-
-  if kill -0 "$pid" 2>/dev/null; then
-    stop_node_pids
-    echo "Bot did not stop after SIGTERM (PID $pid)"
-    exit 1
-  fi
-
-  stop_node_pids
-
-  rm -f "$PID_FILE"
-  echo "Bot stopped (PID $pid)"
+  systemctl --user stop "$UNIT_NAME" || true
+  echo "Bot stopped."
 }
 
 cmd_restart() {
-  cmd_stop || true
-  stop_node_pids
-  cmd_start
+  install_unit_if_needed
+  warn_if_direct_running
+  systemctl --user restart "$UNIT_NAME"
+  sleep 1
+  cmd_status
 }
 
 cmd_status() {
-  cleanup_stale_pid
-
-  if is_running; then
-    echo "Bot managed PID is running (PID $(pid_from_file))"
+  if [ -f "$UNIT_FILE" ]; then
+    local state
+    state="$(systemd_state)"
+    echo "Systemd state: $state"
+    systemctl --user status "$UNIT_NAME" --no-pager --lines=5 || true
   else
-    echo "Bot managed PID is not running"
+    echo "Unit not installed yet. Run './bot.sh start' to install + start, or './bot.sh foreground' for first-time QR scan."
   fi
+
+  local linger
+  if loginctl show-user "$USER" 2>/dev/null | grep -q "Linger=yes"; then
+    linger="enabled"
+  else
+    linger="disabled (bot will stop when you log out; run './bot.sh enable' to fix)"
+  fi
+  echo "Linger: $linger"
 
   local pids
-  pids="$(node_pids)"
+  pids="$(direct_node_pids)"
   if [ -n "$pids" ]; then
-    echo "Node process(es): $pids"
-  else
-    echo "Node process(es): none"
-  fi
-
-  if command -v systemd-inhibit >/dev/null 2>&1; then
-    if systemd-inhibit --list 2>/dev/null | grep -q "WA Debt Tracker"; then
-      echo "Inhibitor: active"
-    else
-      echo "Inhibitor: not active"
-    fi
-  else
-    echo "Inhibitor: unavailable (systemd-inhibit not found)"
+    echo "Direct node PIDs (foreground/leftover): $pids"
   fi
 
   if [ -f "$APP_LOG" ]; then
+    echo ""
     echo "Latest app log:"
     tail -5 "$APP_LOG"
-  else
-    echo "Latest app log: not found ($APP_LOG)"
   fi
 }
 
@@ -162,7 +153,6 @@ cmd_logs() {
   else
     echo "Not found"
   fi
-
   echo
   echo "== Console log: $CONSOLE_LOG =="
   if [ -f "$CONSOLE_LOG" ]; then
@@ -178,10 +168,76 @@ cmd_tail() {
   tail -f "$CONSOLE_LOG"
 }
 
+cmd_journal() {
+  journalctl --user -u "$UNIT_NAME" -n 100 --no-pager
+}
+
 cmd_foreground() {
   ensure_dirs
+  if [ "$(systemd_state)" = "active" ]; then
+    echo "Managed service is running. Run './bot.sh stop' first to free the WA session."
+    exit 1
+  fi
+  warn_if_direct_running
   echo "Running in foreground. Scan QR here if shown. Press Ctrl+C to stop."
-  exec node "$SCRIPT_DIR/src/index.js"
+  exec "$NODE_BIN" "$SCRIPT_DIR/src/index.js"
+}
+
+cmd_enable() {
+  install_unit_if_needed
+  systemctl --user enable "$UNIT_NAME"
+  if ! loginctl show-user "$USER" 2>/dev/null | grep -q "Linger=yes"; then
+    echo "Enabling linger so the bot keeps running after you log out."
+    echo "This needs sudo:"
+    sudo loginctl enable-linger "$USER"
+  fi
+  echo "Bot will auto-start at boot."
+}
+
+cmd_disable() {
+  if [ -f "$UNIT_FILE" ]; then
+    systemctl --user disable "$UNIT_NAME" || true
+  fi
+  echo "Auto-start at boot disabled."
+  echo "(Linger left as-is; run 'sudo loginctl disable-linger $USER' if you want to revert that too.)"
+}
+
+cmd_uninstall() {
+  cmd_stop || true
+  if [ -f "$UNIT_FILE" ]; then
+    rm -f "$UNIT_FILE"
+    systemctl --user daemon-reload
+    echo "Removed unit file $UNIT_FILE"
+  else
+    echo "Unit file not present."
+  fi
+}
+
+usage() {
+  cat <<EOF
+Usage: $0 <command>
+
+Managed (systemd --user):
+  start         Install unit if needed + start the bot
+  stop          Stop the bot
+  restart       Restart the bot
+  status        Show systemd state, linger status, latest app log
+  enable        Enable auto-start at boot (+ enable linger via sudo)
+  disable       Disable auto-start at boot
+  uninstall     Stop bot + remove systemd unit file
+
+Logs:
+  logs          Tail recent lines from data/logs/{today,console}
+  tail          Follow data/logs/bot-console.log live
+  journal       Show last 100 lines from systemd journal for this unit
+
+Standalone:
+  foreground    Run node directly (no systemd) — use for first-time QR scan
+
+Files:
+  Unit:    $UNIT_FILE
+  Console: $CONSOLE_LOG
+EOF
 }
 
 case "${1:-}" in
@@ -191,9 +247,15 @@ case "${1:-}" in
   status)     cmd_status ;;
   logs)       cmd_logs ;;
   tail)       cmd_tail ;;
+  journal)    cmd_journal ;;
   foreground) cmd_foreground ;;
+  enable)     cmd_enable ;;
+  disable)    cmd_disable ;;
+  uninstall)  cmd_uninstall ;;
+  -h|--help|help|"") usage ;;
   *)
-    echo "Usage: $0 {start|stop|restart|status|logs|tail|foreground}"
+    echo "Unknown command: $1"
+    usage
     exit 1
     ;;
 esac

@@ -11,7 +11,9 @@ const aiProvider = process.env.AI_PROVIDER || 'ollama';
 const aiModel = process.env.AI_MODEL || 'llama3.2';
 const aiApiUrl = process.env.AI_API_URL || 'http://localhost:11434/v1';
 const aiApiKey = process.env.AI_API_KEY || '';
-const aiContextMaxRows = parseInt(process.env.AI_CONTEXT_MAX_ROWS, 10) || 0;
+
+const notifyTelegramToken = process.env.NOTIFY_TELEGRAM_TOKEN || '';
+const notifyTelegramChatId = process.env.NOTIFY_TELEGRAM_CHAT_ID || '';
 
 module.exports = {
   // WhatsApp client config
@@ -40,7 +42,14 @@ module.exports = {
     model: aiModel,
     apiUrl: aiApiUrl,
     apiKey: aiApiKey,
-    contextMaxRows: aiContextMaxRows,
+  },
+
+  // External notifier (Telegram)
+  notify: {
+    telegram: {
+      token: notifyTelegramToken,
+      chatId: notifyTelegramChatId,
+    },
   },
 
   // Rate limits

@@ -1,5 +1,5 @@
 const { isReady, askAI } = require('../../../utils/ai');
-const config = require('../../../config');
+const { tools, executeTool, SYSTEM_PROMPT } = require('../ai-tools');
 
 async function handleAi(msg, args, db, sender, groupId) {
   if (!isReady()) {
@@ -14,60 +14,36 @@ async function handleAi(msg, args, db, sender, groupId) {
   }
 
   const waGroupId = msg.from;
-  const maxRows = config.ai.contextMaxRows || null;
-  const limitClause = maxRows ? `LIMIT ${maxRows}` : '';
 
-  // Gather context data
-  const group = db.prepare('SELECT wa_group_id, name FROM groups WHERE wa_group_id = ?').get(waGroupId);
-  const users = db.prepare('SELECT wa_user_id, display_name FROM users').all();
-
-  const debts = db.prepare(`
-    SELECT d.amount, d.description, d.status, d.created_at,
-           u1.display_name AS debtor_name, u2.display_name AS creditor_name
-    FROM debts d
-    JOIN users u1 ON d.debtor_id = u1.id
-    JOIN users u2 ON d.creditor_id = u2.id
-    WHERE d.group_id = ? ${maxRows ? 'ORDER BY d.created_at DESC' : ''} ${limitClause}
-  `).all(groupId);
-
-  const payments = db.prepare(`
-    SELECT p.amount, p.description, p.created_at,
-           u1.display_name AS payer_name, u2.display_name AS receiver_name
-    FROM payments p
-    JOIN users u1 ON p.payer_id = u1.id
-    JOIN users u2 ON p.receiver_id = u2.id
-    WHERE p.group_id = ? ${maxRows ? 'ORDER BY p.created_at DESC' : ''} ${limitClause}
-  `).all(groupId);
-
-  const logs = db.prepare(`
-    SELECT user_name, command, args, status, created_at
-    FROM command_log
-    WHERE group_id = ?
-    ORDER BY created_at DESC
-    ${limitClause}
-  `).all(waGroupId);
-
-  // Resolve mentioned users
   const mentionedUsers = [];
   if (msg.mentions && msg.mentions.length > 0) {
     for (const mention of msg.mentions) {
-      const user = db.prepare('SELECT wa_user_id, display_name FROM users WHERE wa_user_id = ?').get(mention.id || mention);
+      const user = db.prepare('SELECT id, wa_user_id, display_name FROM users WHERE wa_user_id = ?')
+        .get(mention.id || mention);
       if (user) mentionedUsers.push(user);
     }
   }
 
-  const contextData = {
-    group: group || null,
-    users,
-    debts_summary: debts,
-    payments_summary: payments,
-    recent_logs: logs,
-    mentioned_users: mentionedUsers,
-  };
+  const hints = [];
+  if (sender && sender.display_name) hints.push(`(Pertanyaan dari: ${sender.display_name})`);
+  if (mentionedUsers.length > 0) {
+    hints.push(`(User yang di-mention: ${mentionedUsers.map(u => u.display_name).join(', ')})`);
+  }
+  const userMessage = hints.length > 0 ? `${hints.join('\n')}\n${prompt}` : prompt;
 
   try {
-    const answer = await askAI(prompt, contextData);
-    msg.reply(`🤖 *AI:* ${answer}`);
+    const answer = await askAI({
+      prompt: userMessage,
+      systemPrompt: SYSTEM_PROMPT,
+      tools,
+      executeTool,
+      toolContext: { db, groupId, waGroupId },
+    });
+    if (!answer) {
+      msg.reply('❌ AI tidak menghasilkan respons.');
+      return;
+    }
+    msg.reply(`💭 ${answer}`);
   } catch (err) {
     msg.reply(`❌ ${err.message}`);
   }
