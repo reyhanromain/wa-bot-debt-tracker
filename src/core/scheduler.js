@@ -1,5 +1,6 @@
 const { Cron } = require('croner');
 const logger = require('./logger');
+const notifier = require('../utils/notifier');
 
 function initScheduler(db, features, ctx) {
   const jobs = [];
@@ -9,7 +10,6 @@ function initScheduler(db, features, ctx) {
 
     for (const schedule of feature.schedules) {
       const job = new Cron(schedule.cron, { timezone: schedule.tz || 'Asia/Jakarta' }, async () => {
-        const lastRun = db.prepare('SELECT last_run_at FROM scheduled_runs WHERE job_name = ?').get(schedule.name);
         const now = new Date().toISOString();
 
         try {
@@ -17,7 +17,10 @@ function initScheduler(db, features, ctx) {
           db.prepare('INSERT OR REPLACE INTO scheduled_runs (job_name, last_run_at) VALUES (?, ?)').run(schedule.name, now);
           logger.info(`Scheduler: job "${schedule.name}" completed`);
         } catch (err) {
+          // Deliberately NOT writing scheduled_runs here: a failed job must not
+          // look like a completed one on the next inspection.
           logger.error(`Scheduler: job "${schedule.name}" failed`, err);
+          await notifier.alertJobFailure(schedule.name, err.message || String(err)).catch(() => {});
         }
       });
 

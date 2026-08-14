@@ -103,6 +103,10 @@ async function alertStuck(consecutiveFails, state) {
   return sendText(`🚨 *Bot stuck* — ${consecutiveFails}× cek heartbeat gagal (state: \`${state || 'null'}\`). Exit untuk dipicu systemd restart.`);
 }
 
+async function alertJobFailure(jobName, reason) {
+  return sendText(`⏰ *Scheduled job gagal* — \`${jobName}\`\n${reason}`);
+}
+
 module.exports = {
   isConfigured,
   sendText,
@@ -112,4 +116,5 @@ module.exports = {
   alertCrash,
   alertReady,
   alertStuck,
+  alertJobFailure,
 };

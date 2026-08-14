@@ -107,6 +107,18 @@ Saat keluar rumah dan QR muncul di Telegram-mu, butuh **layar kedua** (tablet, H
 
 Notifier disable otomatis kalau dua env var tsb kosong — bot tetap jalan, alert hanya muncul di log lokal.
 
+### Scheduled job yang gagal
+
+Job yang melempar exception **tidak** menulis `scheduled_runs` dan tidak di-log sebagai `completed` — supaya job gagal tidak terlihat seperti sukses saat log diperiksa. Errornya di-log dan dikirim ke Telegram lewat `alertJobFailure()`.
+
+Khusus `yt-billing`: pemotongan saldo dan pengiriman pengumuman adalah dua tahap terpisah. Kalau saldo sudah terpotong tapi pengumuman gagal terkirim, job melempar exception dengan daftar grup yang gagal — jadi jangan pakai `.billing` manual untuk "mengulang", karena guard "sudah dilakukan bulan ini" akan menolaknya dan saldo memang sudah terpotong.
+
+Pengiriman terjadwal memakai `client.sendMessage(groupId, ...)`, **bukan** `getChatById(...).sendMessage(...)`. Membangun Chat model untuk grup menyentuh jalur group-metadata WhatsApp Web yang bisa melempar `DataError` di build WA Web tertentu; `sendMessage` melewatinya.
+
+### Kalau bot diam di satu grup saja
+
+Kalau bot membalas di grup lain tapi bisu di satu grup (pesan keluar mengendap di ACK 0), grup itu kemungkinan belum ter-sync ke sesi web — biasanya terjadi setelah re-scan QR pada grup yang lama tidak aktif. Kirim satu pesan di grup tersebut dari HP-mu untuk memaksa sync, lalu coba lagi.
+
 ### Setup Awal
 
 1. Jalankan `./bot.sh foreground`, scan QR code

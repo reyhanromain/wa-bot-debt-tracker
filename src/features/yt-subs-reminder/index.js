@@ -5,7 +5,9 @@ const { handleTopup } = require('./commands/topup');
 const { handleSaldo } = require('./commands/saldo');
 const { handleTsx } = require('./commands/tsx');
 const { handleHelp } = require('./commands/help');
-const { formatAmount } = require('../../shared/parser');
+const { formatAmount, nowWIB } = require('../../shared/parser');
+const logger = require('../../core/logger');
+const notifier = require('../../utils/notifier');
 
 const MONTHLY_FEE = 31000;
 
@@ -29,7 +31,7 @@ module.exports = {
       async run({ db, client }) {
         const members = db.prepare('SELECT * FROM yt_members WHERE active = 1 ORDER BY id').all();
         const now = new Date();
-        const ts = now.toISOString().replace(/\.\d{3}Z$/, '+07:00');
+        const ts = nowWIB();
         const monthStr = now.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric' });
 
         const lines = [`📢 *YouTube Premium — Billing ${monthStr}*`, '', `Saldo dikurangi Rp${formatAmount(MONTHLY_FEE)} per member.`, '', '💰 *Saldo setelah billing:*'];
@@ -57,17 +59,31 @@ module.exports = {
           }
         }
 
-        // Send to all groups that have this feature assigned
+        // Send to all groups that have this feature assigned.
+        // Deliberately client.sendMessage() and not getChatById().sendMessage():
+        // building a group Chat model hits WhatsApp Web's group-metadata path,
+        // which throws on the current WA Web build. sendMessage skips it.
         const groups = db.prepare("SELECT wa_group_id FROM group_features WHERE feature_name = 'yt-subs-reminder'").all();
+        if (groups.length === 0) {
+          throw new Error('saldo sudah dipotong tapi tidak ada grup yang di-assign ke yt-subs-reminder');
+        }
+
+        const text = lines.join('\n');
+        const options = warnings.length > 0 ? { mentions: warnings.map(m => m.wa_user_id) } : {};
+        const failures = [];
+
         for (const g of groups) {
           try {
-            const chat = await client.getChatById(g.wa_group_id);
-            if (warnings.length > 0) {
-              await chat.sendMessage(lines.join('\n'), { mentions: warnings.map(m => m.wa_user_id) });
-            } else {
-              await chat.sendMessage(lines.join('\n'));
-            }
-          } catch (_) {}
+            await client.sendMessage(g.wa_group_id, text, options);
+          } catch (err) {
+            failures.push(`${g.wa_group_id} (${err.message})`);
+            logger.error(`yt-billing: gagal kirim ke ${g.wa_group_id}`, err);
+          }
+        }
+
+        if (failures.length > 0) {
+          await notifier.alertJobFailure('yt-billing', `Saldo SUDAH dipotong tapi pengumuman gagal terkirim ke ${failures.length}/${groups.length} grup:\n${failures.join('\n')}`).catch(() => {});
+          throw new Error(`gagal kirim ke ${failures.length}/${groups.length} grup: ${failures.join('; ')}`);
         }
       },
     },
