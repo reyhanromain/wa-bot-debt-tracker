@@ -4,6 +4,20 @@ const fs = require('fs');
 
 const DB_PATH = path.join(__dirname, '..', '..', 'data', 'tracker.db');
 
+/**
+ * Timestamp WIB, sama format dengan nowWIB() di shared/parser.js.
+ * Sengaja diduplikasi (bukan di-import) supaya db.js tidak menyeret
+ * shared/parser → config, yang meng-instantiate WhatsApp Client saat load.
+ * Jangan pakai toISOString() lalu ditempel "+07:00": itu jam UTC berlabel WIB.
+ * @returns {string} "YYYY-MM-DDTHH:mm:ss.SSS+07:00"
+ */
+function nowWIB() {
+  const now = new Date();
+  const dateStr = now.toLocaleString('sv-SE', { timeZone: 'Asia/Jakarta' });
+  const ms = String(now.getMilliseconds()).padStart(3, '0');
+  return `${dateStr.replace(' ', 'T')}.${ms}+07:00`;
+}
+
 function initDatabase() {
   const dataDir = path.dirname(DB_PATH);
   if (!fs.existsSync(dataDir)) {
@@ -60,7 +74,7 @@ function initDatabase() {
   `);
 
   // Migration: auto-assign existing groups to debt-tracker
-  const now = new Date().toISOString().replace(/\.\d{3}Z$/, '+07:00');
+  const now = nowWIB();
   db.exec(`
     INSERT OR IGNORE INTO group_features (wa_group_id, feature_name, assigned_at)
     SELECT g.wa_group_id, 'debt-tracker', '${now}'
