@@ -220,6 +220,51 @@ try {
   }
   console.log('✅ AI module berfungsi dengan benar.');
 
+  const config = require('./src/config');
+  const { handleTopup } = require('./src/features/yt-subs-reminder/commands/topup');
+  db.prepare('INSERT INTO users (wa_user_id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)').run('62812admin@c.us', 'Admin', now, now);
+  config.superAdminUserId = db.prepare('SELECT id FROM users WHERE wa_user_id = ?').get('62812admin@c.us').id;
+  db.prepare('INSERT INTO yt_members (display_name, wa_user_id, balance, active, created_at) VALUES (?, ?, ?, 1, ?)').run('Topup User', '62812topup@c.us', 10000, now);
+  db.prepare('INSERT INTO yt_members (display_name, balance, active, created_at) VALUES (?, ?, 1, ?)').run('Fernando Putra', 5000, now);
+
+  const makeTopupMsg = (mentionedIds = []) => {
+    const replies = [];
+    return {
+      author: '62812admin@c.us',
+      from: '62812-test@g.us',
+      mentionedIds,
+      replies,
+      reply(text) {
+        replies.push(text);
+      },
+    };
+  };
+  const testTopupTransactionCount = () => db.prepare(`
+    SELECT COUNT(*) AS total FROM yt_transactions t
+    JOIN yt_members m ON m.id = t.member_id
+    WHERE t.description = 'topup'
+      AND m.display_name IN ('Topup User', 'Fernando Putra')
+  `).get().total;
+
+  let topupMsg = makeTopupMsg(['62812topup@c.us']);
+  handleTopup(topupMsg, ['@Topup', '15rb'], db);
+  const linkedTopupBalance = db.prepare('SELECT balance FROM yt_members WHERE display_name = ?').get('Topup User').balance;
+  if (linkedTopupBalance !== 25000) throw new Error('Topup by mention should update linked member balance');
+  if (!topupMsg.replies[0].includes('Topup User')) throw new Error('Topup by mention reply should include member name');
+
+  topupMsg = makeTopupMsg();
+  handleTopup(topupMsg, ['fernando', 'putra', '20rb'], db);
+  const namedTopupBalance = db.prepare('SELECT balance FROM yt_members WHERE display_name = ?').get('Fernando Putra').balance;
+  if (namedTopupBalance !== 25000) throw new Error('Topup by display_name should update member balance');
+  if (!topupMsg.replies[0].includes('Fernando Putra')) throw new Error('Topup by display_name reply should include member name');
+
+  topupMsg = makeTopupMsg();
+  handleTopup(topupMsg, ['Member', 'Hilang', '20rb'], db);
+  if (testTopupTransactionCount() !== 2) throw new Error('Missing display_name should not insert topup transaction');
+  if (!topupMsg.replies[0].includes('tidak ditemukan')) throw new Error('Missing display_name should reply not found');
+
+  console.log('✅ Topup by mention/display_name command tests passed.');
+
   const { handlePayFor, handleSettleFor } = require('./src/features/debt-tracker/commands/pay_for');
   if (typeof handlePayFor !== 'function') throw new Error('handlePayFor should be a function');
   if (typeof handleSettleFor !== 'function') throw new Error('handleSettleFor should be a function');

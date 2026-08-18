@@ -18,7 +18,7 @@ module.exports = {
   commands: {
     billing: { handler: handleBilling, requiresRegistration: false, rateLimit: null, help: '.billing — Trigger billing manual' },
     member: { handler: handleMember, requiresRegistration: false, rateLimit: null, help: '.member — Manage member' },
-    topup: { handler: handleTopup, requiresRegistration: false, rateLimit: null, help: '.topup @user <nominal> — Tambah saldo' },
+    topup: { handler: handleTopup, requiresRegistration: false, rateLimit: null, help: '.topup @user|<nama> <nominal> — Tambah saldo' },
     saldo: { handler: handleSaldo, requiresRegistration: false, rateLimit: null, help: '.saldo — Lihat saldo' },
     tsx: { handler: handleTsx, requiresRegistration: false, rateLimit: null, help: '.tsx [n] — Riwayat transaksi' },
     help: { handler: handleHelp, requiresRegistration: false, rateLimit: null, help: '.help — Bantuan' },
