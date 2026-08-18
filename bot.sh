@@ -15,7 +15,13 @@ UNIT_NAME="wa-bot.service"
 UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 UNIT_FILE="$UNIT_DIR/$UNIT_NAME"
 
-NODE_BIN="${NODE_BIN:-$(command -v node || echo /usr/bin/node)}"
+if [ -n "${NODE_BIN:-}" ]; then
+  NODE_BIN="$NODE_BIN"
+elif [ -x /usr/bin/node ]; then
+  NODE_BIN="/usr/bin/node"
+else
+  NODE_BIN="$(command -v node || echo /usr/bin/node)"
+fi
 
 ensure_dirs() {
   mkdir -p "$LOG_DIR" "$UNIT_DIR"
